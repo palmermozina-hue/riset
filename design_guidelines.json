@@ -1,0 +1,130 @@
+{
+  "theme": "light",
+  "archetype": "Organic & Earthy (Warmth + Tech) - Trust, growth, and approachability.",
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "Plus Jakarta Sans",
+    "scale_rules": {
+      "h1": "text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-bold text-stone-900",
+      "h2": "text-3xl sm:text-4xl lg:text-5xl tracking-tight font-bold text-stone-900",
+      "h3": "text-xl sm:text-2xl font-semibold text-stone-800",
+      "body": "text-base sm:text-lg leading-relaxed text-stone-600",
+      "label": "text-xs font-bold uppercase tracking-[0.2em] text-emerald-600"
+    }
+  },
+  "colors": {
+    "primary": {
+      "base": "#064E3B",
+      "hover": "#022C22",
+      "tailwind": "emerald-900",
+      "description": "Deep Emerald (Hijau UMKM) - Represents trust, growth, and local business."
+    },
+    "accent": {
+      "base": "#EA580C",
+      "hover": "#C2410C",
+      "tailwind": "orange-600",
+      "description": "Warm Terracotta/Orange - Action, energy, local warmth. Used strictly for CTAs and highlights."
+    },
+    "background": {
+      "base": "#FAFAF9",
+      "surface": "#FFFFFF",
+      "tailwind": "stone-50",
+      "description": "Warm Stone 50 - Avoids harsh stark white. Creates an approachable, earthy feel."
+    },
+    "text": {
+      "primary": "#1C1917",
+      "secondary": "#57534E",
+      "tailwind": "stone-900 and stone-600"
+    },
+    "forbidden_colors": ["#7351B7", "#1B93A4"]
+  },
+  "visual_enhancers": {
+    "surfaces": [
+      "Glassmorphism: Use for sticky nav. `bg-white/70 backdrop-blur-xl border-b border-stone-200/50`. Never raw transparent.",
+      "Neumorphism (Tactile): For feature Bento cards. Flat white background, 1px subtle border (`border-stone-200`), hover: slight lift `-translate-y-1` + `shadow-xl shadow-stone-200/50`."
+    ],
+    "shapes": "Generous rounded corners (`rounded-2xl` or `rounded-3xl` on major containers) to feel friendly and human.",
+    "spacing": "Generous spacing philosophy. Use `p-8` to `p-12` for cards, `py-24` or `py-32` for sections.",
+    "borders": "1px solid borders (`border-stone-200`) on structural elements to create crisp, clean separation without heavy drop shadows."
+  },
+  "layouts": {
+    "general": "Single-page, scroll storytelling. Mobile-first responsive grids.",
+    "nav": "Sticky glassmorphism header. Left: TuntasUMKM Logo (Text + Icon). Right: Hidden on mobile (hamburger), Desktop shows links + CTA.",
+    "hero": "Asymmetric split. Left: Outcome-driven headline ('Agen AI yang nggak cuma jawab, tapi bertindak'), sub-copy, Dual CTAs (Primary Terracotta, Secondary Outline). Right: Code-built UI mockup of a chat interface floating over a subtle abstract green texture. Use 'Tetris Grid' mode (grid-cols-12, left col-span-5, right col-span-7).",
+    "problem_statement": "3-column grid (`grid-cols-1 md:grid-cols-3`) with generous `gap-12`. Highlight the core stat ('64% Waktu Terbuang') as a massive typographic element (`text-7xl font-light`).",
+    "how_it_works": "Visual 7-stage pipeline (Intake -> Understanding -> Grounding -> Tool Call -> Approval -> Response -> Analytics). Create a horizontally scrolling or wrapped sequence of numbered cards connected by thin dashed lines.",
+    "features": "Bento Grid (`grid-cols-1 md:grid-cols-12 gap-6`). Mix spans (e.g., `col-span-12 md:col-span-8`, `md:col-span-4`, `md:col-span-6`) to break symmetry. Each cell must have an icon, title, short desc, and a mini visual/UI snippet.",
+    "differentiator": "Grid Borders ('The Technical Look'). Clean comparison table (Chatbot Biasa vs TuntasUMKM). Use Lucide Check/X icons. Highlight the TuntasUMKM column with a subtle green tint (`bg-emerald-50`).",
+    "demo_preview": "Massive central section. Build actual HTML/Tailwind mockups for the chat interface and analytics dashboard. Make it interactive if possible (e.g., hover effects on the mock data). Do not use an image for the UI.",
+    "target_segments": "3 Use case cards (Warung, Fashion, Elektronik). Each featuring a highly relevant photo from the media list with a gradient overlay and text at the bottom.",
+    "cta": "Dark section (Deep Emerald `bg-emerald-900`) with a 'Crystal Glass' styled form card (`bg-white/10 backdrop-blur-md`) for the mock email waitlist."
+  },
+  "motion": {
+    "scroll": "Use Framer Motion for scroll-triggered fade-up (`initial={{ opacity: 0, y: 20 }}`) and stagger-children for grid items.",
+    "micro": "Hover states on all interactive elements. Buttons scale down (`active:scale-95`). Cards lift up slightly on hover."
+  },
+  "components": [
+    {
+      "name": "Button",
+      "instruction": "Pill-shaped (`rounded-full`). Primary: `bg-orange-600 hover:bg-orange-700 text-white`. Secondary: `bg-white border-2 border-stone-200 hover:border-emerald-900 text-stone-900`."
+    },
+    {
+      "name": "Card",
+      "instruction": "Use pure HTML/Tailwind for complex layouts rather than rigid shadcn Card to allow overlapping. Standard styling: `bg-white rounded-3xl border border-stone-200 p-8`."
+    },
+    {
+      "name": "Input",
+      "instruction": "Shadcn input with `rounded-full` or `rounded-xl`, high contrast border (`border-stone-300`), and a sharp focus ring (`focus-visible:ring-emerald-600 focus-visible:border-emerald-600`)."
+    }
+  ],
+  "media": {
+    "images": [
+      {
+        "url": "https://images.pexels.com/photos/29355930/pexels-photo-29355930.jpeg",
+        "category": "hero_background",
+        "description": "Vibrant abstract green image. Use as a subtle, low-opacity (`opacity-10`) background behind the right-side hero UI mockup."
+      },
+      {
+        "url": "https://images.pexels.com/photos/3906984/pexels-photo-3906984.jpeg",
+        "category": "target_segment_warung",
+        "description": "Smiling barista in a stylish cafe. Use as the background for the 'Warung Online / F&B' segment card."
+      },
+      {
+        "url": "https://images.pexels.com/photos/32549955/pexels-photo-32549955.jpeg",
+        "category": "target_segment_fashion",
+        "description": "Modern clothing store. Use as the background for the 'Fashion Boutique' segment card."
+      },
+      {
+        "url": "https://images.pexels.com/photos/33357410/pexels-photo-33357410.png",
+        "category": "target_segment_electronics",
+        "description": "Electronics store. Use as the background for the 'Toko Elektronik' segment card."
+      }
+    ]
+  },
+  "icons": "lucide-react. Standardize stroke-width to 1.5 or 2 for consistency.",
+  "instructions_to_main_agent": [
+    "INSTALL DEPENDENCIES: `yarn add framer-motion lucide-react clsx tailwind-merge`.",
+    "FONTS: Import 'Outfit' (weights: 400,600,700) and 'Plus Jakarta Sans' (weights: 400,500,600) from Google Fonts in index.css. Apply them globally.",
+    "CODE-BUILT MOCKUPS: The user explicitly requested 'Code-built UI mockups'. In the Hero and Demo Preview sections, construct the Chat UI and Dashboard visually using divs, flexbox, and Tailwind classes. Do NOT just insert an image placeholder.",
+    "BENTO GRID (Features): Ensure asymmetry. Create a 12-column grid and mix widths. For example, top row has a span-8 and a span-4 card. Bottom row has three span-4 cards.",
+    "COPYWRITING: Use warm, casual Indonesian ('kamu', 'nggak', 'bikin').",
+    "TESTING: Add `data-testid` to all CTAs, navigation links, and the waitlist form."
+  ],
+  "accessibility": {
+    "contrast": "Ensure white text on Emerald-900 and Orange-600 passes WCAG AA guidelines.",
+    "focus": "All interactive elements must have visible focus rings (`focus-visible`)."
+  },
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (`transition: all`). Always add transitions for specific properties (e.g., `transition-colors`, `transition-transform`).",
+    "You MUST NOT center align the app container. Do not add `.App { text-align: center; }` in CSS.",
+    "Always use modern button styles like pill-shaped with interaction animations.",
+    "NEVER use AI assistant Emoji characters (🤖🧠💭💡🔮🎯) for icons. Use Lucide React.",
+    "Every interaction needs micro-animations - hover states, transitions, entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "NEVER use placeholder URLs or placeholder text for images. Use the provided image URLs exclusively."
+  ]
+}
