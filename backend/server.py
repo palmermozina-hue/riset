@@ -10,7 +10,7 @@ import logging
 import httpx
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Any
 import uuid
 from datetime import datetime, timezone
 
@@ -19,13 +19,17 @@ load_dotenv(ROOT_DIR / '.env')
 
 from insforge_client import ping as insforge_ping  # noqa: E402
 
-# MongoDB (template — belum dipakai untuk agent)
+# MongoDB — sekarang jadi source of truth untuk conversations/traces/approvals
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # =========================================================================
 # Katalog produk (mirror dari frontend/src/data/mockDashboard.js)
@@ -43,6 +47,45 @@ PRODUCT_CATALOG_TXT = "\n".join(
     f"- {p['sku']} | {p['name']} | Rp{p['price']:,} | stok {p['stock']}"
     for p in PRODUCTS
 )
+
+# Seed approvals — samain sama frontend/src/data/mockDashboard.js supaya
+# Owner Dashboard nggak kosong pas fresh install / setelah reset.
+SEED_APPROVALS = [
+    {
+        "id": "APV-2841",
+        "customer": "Anisa Fitri",
+        "channel": "WhatsApp Business",
+        "action": "Buat pesanan",
+        "risk": "sedang",
+        "createdAt": "2 menit lalu",
+        "total": 178000,
+        "items": [{"name": "Kopi Susu Gula Aren 1L", "qty": 2, "price": 59000},
+                  {"name": "Croissant Butter", "qty": 4, "price": 15000}],
+        "note": "Pelanggan langganan, request bungkus terpisah.",
+    },
+    {
+        "id": "APV-2839",
+        "customer": "Rizky Aditya",
+        "channel": "Instagram DM",
+        "action": "Refund pesanan",
+        "risk": "tinggi",
+        "createdAt": "6 menit lalu",
+        "total": 145000,
+        "items": [{"name": "Cold Brew Sachet 250ml", "qty": 5, "price": 22000}],
+        "note": "Komplain rasa asam. Owner perlu putuskan tukar atau refund.",
+    },
+    {
+        "id": "APV-2837",
+        "customer": "Dewi Rahma",
+        "channel": "WhatsApp Business",
+        "action": "Update stok",
+        "risk": "rendah",
+        "createdAt": "12 menit lalu",
+        "total": 0,
+        "items": [{"name": "Banana Cake Slice", "qty": 10, "price": 0}],
+        "note": "Restock dari supplier, tinggal konfirmasi.",
+    },
+]
 
 # =========================================================================
 # Schemas
@@ -86,7 +129,35 @@ class AgentResponse(BaseModel):
     intent: str
     reply: str
     trace: List[TraceStep]
+    trace_id: str
     approval: Optional[ApprovalItem] = None
+
+class ConversationMessage(BaseModel):
+    """Message frontend format — dipetakan langsung dari/ke localStorage lama."""
+    model_config = ConfigDict(extra="allow")
+    from_: str = Field(alias="from")
+    text: str
+    at: Optional[str] = None
+    system: Optional[bool] = None
+
+class LiveSessionPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    id: Optional[str] = None
+    customer: Optional[str] = None
+    channel: Optional[str] = None
+    lastAt: Optional[str] = None
+    unread: Optional[int] = 0
+    status: Optional[str] = None
+    intent: Optional[str] = None
+    messages: List[dict] = []
+    trace: List[dict] = []
+
+class ApprovalDecision(BaseModel):
+    decision: Literal["approve", "reject"]
+    reason: Optional[str] = None
+
+class ConversationMessagesPayload(BaseModel):
+    messages: List[dict]
 
 # =========================================================================
 # LLM: OpenRouter — stealth/ox-alpha
@@ -115,6 +186,7 @@ Aturan:
 - Kalau stok 0 → tetap balas ramah + tawarin waitlist, intent tetap sesuai (mau_pesan/tanya_stok).
 - Kalau keluhan → intent=keluhan, minta nomor pesanan.
 - Kalau tidak yakin → intent=lainnya."""
+
 
 def build_trace(intent: str, sku: Optional[str], qty: Optional[int],
                 session_id: str, confidence: float,
@@ -218,14 +290,11 @@ def build_trace(intent: str, sku: Optional[str], qty: Optional[int],
 
 
 def extract_json(text: str) -> dict:
-    """Coba parse JSON dari balasan LLM (kadang di-wrap markdown fence)."""
     text = text.strip()
-    # Coba direct
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Coba dari fence
     m = re.search(r"\{[\s\S]*\}", text)
     if m:
         try:
@@ -236,8 +305,7 @@ def extract_json(text: str) -> dict:
 
 
 def heuristic_parse(message: str) -> dict:
-    """Fallback deterministik kalau LLM lagi rate-limited/error.
-    Demo hackathon nggak boleh mati cuma gara-gara upstream 429."""
+    """Fallback deterministik kalau LLM lagi rate-limited/error."""
     text = message.lower()
     product = None
     for p in PRODUCTS:
@@ -253,7 +321,7 @@ def heuristic_parse(message: str) -> dict:
     complain_words = ("komplain", "protes", "rusak", "kecewa", "salah kirim", "refund")
 
     if any(w in text for w in complain_words):
-        intent = "komplain"
+        intent = "keluhan"
     elif any(w in text for w in order_words) and product:
         intent = "mau_pesan"
     elif any(w in text for w in stock_words):
@@ -292,14 +360,23 @@ def heuristic_parse(message: str) -> dict:
     }
 
 
-async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
+async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int, dict]:
+    """Return (parsed_json, elapsed_ms, raw_payload_dict).
+
+    raw_payload_dict berisi request+response asli buat disimpan di
+    workflow_traces — memenuhi P1-B (trace viewer detail payload).
+    """
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        logger.warning("OPENROUTER_API_KEY belum di-set — pakai fallback deterministik")
-        return heuristic_parse(message), 0
+        parsed = heuristic_parse(message)
+        return parsed, 0, {
+            "source": "heuristic_fallback",
+            "reason": "OPENROUTER_API_KEY tidak di-set",
+            "parsed": parsed,
+        }
 
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for h in history[-8:]:  # cap history
+    for h in history[-8:]:
         msgs.append({"role": "user" if h.role == "customer" else "assistant", "content": h.text})
     msgs.append({"role": "user", "content": message})
 
@@ -317,7 +394,6 @@ async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
     }
     start = datetime.now()
     r = None
-    # Upstream stealth/ox-alpha kadang 429 sesaat — retry dengan backoff.
     async with httpx.AsyncClient(timeout=30.0) as http:
         for attempt in range(3):
             try:
@@ -333,19 +409,82 @@ async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
                 await asyncio.sleep(1.2 * (attempt + 1))
 
     elapsed_ms = int((datetime.now() - start).total_seconds() * 1000)
+    raw_payload: dict = {
+        "source": "openrouter",
+        "model": OPENROUTER_MODEL,
+        "request": {"model": OPENROUTER_MODEL, "messages": msgs, "temperature": 0.4},
+        "status_code": r.status_code if r is not None else None,
+        "elapsed_ms": elapsed_ms,
+    }
 
     if r is None or r.status_code != 200:
         detail = r.text[:400] if r is not None else "no response"
         logger.error(f"OpenRouter gagal setelah retry: {detail}")
-        return heuristic_parse(message), elapsed_ms
+        parsed = heuristic_parse(message)
+        raw_payload["error"] = detail
+        raw_payload["fallback"] = "heuristic_parse"
+        raw_payload["parsed"] = parsed
+        return parsed, elapsed_ms, raw_payload
 
     data = r.json()
+    raw_payload["response"] = data
     content = data["choices"][0]["message"]["content"]
     parsed = extract_json(content)
     if not parsed:
         logger.error(f"LLM output not parseable: {content[:400]}")
         parsed = heuristic_parse(message)
-    return parsed, elapsed_ms
+        raw_payload["fallback"] = "heuristic_parse (unparseable content)"
+    raw_payload["parsed"] = parsed
+    return parsed, elapsed_ms, raw_payload
+
+
+# =========================================================================
+# Helpers: MongoDB persistence
+# =========================================================================
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def _ensure_seed_approvals() -> None:
+    """Kalau collection kosong (fresh install), seed sama data mock frontend."""
+    count = await db.approvals.count_documents({})
+    if count == 0:
+        docs = [{**a, "status": "pending", "created_at": _now_iso()} for a in SEED_APPROVALS]
+        await db.approvals.insert_many(docs)
+        logger.info(f"Seeded {len(docs)} approvals")
+
+
+async def _save_conversation_messages(session_id: str, messages: List[dict]) -> None:
+    await db.conversations.update_one(
+        {"session_id": session_id},
+        {"$set": {"session_id": session_id, "messages": messages, "updated_at": _now_iso()}},
+        upsert=True,
+    )
+
+
+async def _save_trace(trace_id: str, session_id: str, message: str,
+                      parsed: dict, trace_steps: List[dict],
+                      raw_payload: dict, approval_id: Optional[str]) -> None:
+    await db.workflow_traces.insert_one({
+        "trace_id": trace_id,
+        "session_id": session_id,
+        "customer_message": message,
+        "intent": parsed.get("intent"),
+        "sku": parsed.get("sku"),
+        "qty": parsed.get("qty"),
+        "confidence": parsed.get("confidence"),
+        "reply": parsed.get("reply"),
+        "trace_steps": trace_steps,
+        "llm_payload": raw_payload,
+        "approval_id": approval_id,
+        "created_at": _now_iso(),
+    })
+
+
+def _strip_id(doc: dict) -> dict:
+    doc = {**doc}
+    doc.pop("_id", None)
+    return doc
 
 
 # =========================================================================
@@ -355,10 +494,11 @@ async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
 async def root():
     return {"message": "TuntasUMKM API online", "model": OPENROUTER_MODEL}
 
+
 @api_router.get("/insforge/health")
 async def insforge_health():
-    """Cek koneksi ke InsForge (REST) — dipakai buat verifikasi setup."""
     return await insforge_ping()
+
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
@@ -368,6 +508,7 @@ async def create_status_check(input: StatusCheckCreate):
     await db.status_checks.insert_one(doc)
     return status_obj
 
+
 @api_router.get("/status", response_model=List[StatusCheck])
 async def get_status_checks():
     docs = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
@@ -376,21 +517,23 @@ async def get_status_checks():
             d['timestamp'] = datetime.fromisoformat(d['timestamp'])
     return docs
 
+
 @api_router.get("/agent/products")
 async def get_products():
     return {"products": PRODUCTS}
 
+
 @api_router.post("/agent/chat", response_model=AgentResponse)
 async def agent_chat(req: AgentRequest):
-    parsed, llm_ms = await call_llm(req.message, req.history)
+    parsed, llm_ms, raw_payload = await call_llm(req.message, req.history)
     intent = parsed.get("intent", "lainnya")
     sku = parsed.get("sku")
     qty = parsed.get("qty")
     reply = parsed.get("reply") or "Halo kak 👋 ada yang bisa aku bantu?"
     confidence = float(parsed.get("confidence", 0.7))
 
-    approval = None
-    approval_id = None
+    approval: Optional[ApprovalItem] = None
+    approval_id: Optional[str] = None
     product = next((p for p in PRODUCTS if p["sku"] == sku), None) if sku else None
     if intent == "mau_pesan" and product and qty and product["stock"] > 0:
         try:
@@ -412,11 +555,145 @@ async def agent_chat(req: AgentRequest):
                 items=[{"name": product["name"], "qty": qty_i, "price": product["price"]}],
                 note=f"Order via demo publik TuntasUMKM (LLM: {OPENROUTER_MODEL}).",
             )
+            # persist approval — supaya muncul di /dashboard tanpa tergantung localStorage
+            await db.approvals.update_one(
+                {"id": approval_id},
+                {"$set": {
+                    **approval.model_dump(),
+                    "session_id": req.session_id,
+                    "status": "pending",
+                    "created_at": _now_iso(),
+                }},
+                upsert=True,
+            )
 
     trace = build_trace(intent, sku, qty, req.session_id, confidence, llm_ms, approval_id)
-    return AgentResponse(intent=intent, reply=reply, trace=trace, approval=approval)
+    trace_id = str(uuid.uuid4())
+    trace_steps_dump = [t.model_dump() for t in trace]
+
+    await _save_trace(trace_id, req.session_id, req.message, parsed,
+                      trace_steps_dump, raw_payload, approval_id)
+
+    return AgentResponse(intent=intent, reply=reply, trace=trace,
+                         trace_id=trace_id, approval=approval)
 
 
+# ------------------ Conversations ------------------
+@api_router.get("/agent/conversations/{session_id}")
+async def get_conversation(session_id: str):
+    doc = await db.conversations.find_one({"session_id": session_id}, {"_id": 0})
+    return doc or {"session_id": session_id, "messages": []}
+
+
+@api_router.put("/agent/conversations/{session_id}")
+async def put_conversation(session_id: str, payload: ConversationMessagesPayload):
+    await _save_conversation_messages(session_id, payload.messages)
+    return {"ok": True, "session_id": session_id, "count": len(payload.messages)}
+
+
+@api_router.post("/agent/conversations/{session_id}/reset")
+async def reset_conversation(session_id: str):
+    await db.conversations.delete_one({"session_id": session_id})
+    await db.owner_events.delete_many({"session_id": session_id})
+    await db.live_sessions.delete_one({"session_id": session_id})
+    return {"ok": True}
+
+
+# ------------------ Traces ------------------
+@api_router.get("/agent/traces/{trace_id}")
+async def get_trace(trace_id: str):
+    doc = await db.workflow_traces.find_one({"trace_id": trace_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="trace not found")
+    return doc
+
+
+@api_router.get("/agent/traces")
+async def list_traces(session_id: Optional[str] = None, limit: int = 20):
+    q: dict = {}
+    if session_id:
+        q["session_id"] = session_id
+    docs = await db.workflow_traces.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return {"traces": docs}
+
+
+# ------------------ Approvals ------------------
+@api_router.get("/agent/approvals")
+async def list_approvals(status: str = "pending"):
+    await _ensure_seed_approvals()
+    q: dict = {} if status == "all" else {"status": status}
+    docs = await db.approvals.find(q, {"_id": 0}).sort("created_at", -1).to_list(200)
+    return {"approvals": docs}
+
+
+@api_router.post("/agent/approvals/{approval_id}/decide")
+async def decide_approval(approval_id: str, body: ApprovalDecision):
+    doc = await db.approvals.find_one({"id": approval_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="approval not found")
+    if doc.get("status") not in (None, "pending"):
+        raise HTTPException(status_code=409, detail=f"approval already {doc.get('status')}")
+
+    now = _now_iso()
+    await db.approvals.update_one(
+        {"id": approval_id},
+        {"$set": {"status": body.decision, "decided_at": now, "reason": body.reason}},
+    )
+    # Kirim event ke session terkait (kalau ada) → dikonsumsi frontend /demo
+    session_id = doc.get("session_id")
+    if session_id:
+        await db.owner_events.insert_one({
+            "event_id": str(uuid.uuid4()),
+            "session_id": session_id,
+            "approval_id": approval_id,
+            "decision": body.decision,
+            "customer": doc.get("customer"),
+            "total": doc.get("total"),
+            "reason": body.reason or ("stok lagi nggak mencukupi" if body.decision == "reject" else None),
+            "consumed": False,
+            "created_at": now,
+        })
+
+    return {"ok": True, "id": approval_id, "decision": body.decision, "session_id": session_id}
+
+
+# ------------------ Owner events (polling) ------------------
+@api_router.get("/agent/owner-events")
+async def get_owner_events(session_id: str, consume: bool = True):
+    """Ambil event owner untuk session ini, otomatis tandai consumed."""
+    q = {"session_id": session_id, "consumed": False}
+    docs = await db.owner_events.find(q, {"_id": 0}).sort("created_at", 1).to_list(50)
+    if consume and docs:
+        ids = [d["event_id"] for d in docs]
+        await db.owner_events.update_many(
+            {"event_id": {"$in": ids}},
+            {"$set": {"consumed": True, "consumed_at": _now_iso()}},
+        )
+    return {"events": docs}
+
+
+# ------------------ Live session (untuk Inbox trace viewer) ------------------
+@api_router.get("/agent/live-session")
+async def get_live_session():
+    doc = await db.live_sessions.find_one({"key": "current"}, {"_id": 0})
+    return doc.get("payload") if doc else None
+
+
+@api_router.put("/agent/live-session")
+async def put_live_session(payload: LiveSessionPayload):
+    body = payload.model_dump()
+    await db.live_sessions.update_one(
+        {"key": "current"},
+        {"$set": {"key": "current", "payload": body, "updated_at": _now_iso(),
+                  "session_id": body.get("id")}},
+        upsert=True,
+    )
+    return {"ok": True}
+
+
+# =========================================================================
+# App wiring
+# =========================================================================
 app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
@@ -426,9 +703,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
+@app.on_event("startup")
+async def _startup_seed():
+    try:
+        await _ensure_seed_approvals()
+    except Exception as exc:
+        logger.warning(f"Seed approvals failed (non-fatal): {exc}")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
