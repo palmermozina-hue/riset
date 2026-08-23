@@ -672,6 +672,131 @@ async def get_owner_events(session_id: str, consume: bool = True):
     return {"events": docs}
 
 
+# ------------------ Analytics (aggregasi dari workflow_traces + approvals) ------------------
+INTENT_LABELS = {
+    "tanya_stok": "Tanya stok",
+    "tanya_produk": "Tanya produk",
+    "mau_pesan": "Mau pesan",
+    "keluhan": "Keluhan",
+    "lainnya": "Lainnya",
+}
+
+
+@api_router.get("/agent/analytics/summary")
+async def analytics_summary(days: int = 7):
+    """Dashboard analytics — dihitung on-the-fly dari workflow_traces + approvals."""
+    from collections import Counter
+    from datetime import timedelta
+
+    traces = await db.workflow_traces.find({}, {"_id": 0}).to_list(5000)
+    approvals = await db.approvals.find({}, {"_id": 0}).to_list(5000)
+
+    # Intent distribution
+    intent_counter = Counter(t.get("intent") or "lainnya" for t in traces)
+    intent_series = [
+        {"intent": INTENT_LABELS.get(k, k), "total": v}
+        for k, v in intent_counter.most_common()
+    ]
+
+    # Latency dari Understanding stage (LLM ms) — proxy untuk response time
+    understanding_ms = []
+    total_ms = []
+    for t in traces:
+        steps = t.get("trace_steps") or []
+        for s in steps:
+            if s.get("stage") == "Understanding":
+                understanding_ms.append(s.get("ms") or 0)
+        total_ms.append(sum((s.get("ms") or 0) for s in steps))
+
+    avg_llm_ms = sum(understanding_ms) / len(understanding_ms) if understanding_ms else 0
+    avg_total_ms = sum(total_ms) / len(total_ms) if total_ms else 0
+
+    # Approval rate + avg approval latency (created→decided)
+    decided = [a for a in approvals if a.get("status") in ("approve", "reject")]
+    approved = [a for a in decided if a.get("status") == "approve"]
+    approval_rate = (len(approved) / len(decided) * 100) if decided else 0
+    approval_latencies_min = []
+    for a in decided:
+        c = a.get("created_at")
+        d = a.get("decided_at")
+        if c and d:
+            try:
+                dt_c = datetime.fromisoformat(c)
+                dt_d = datetime.fromisoformat(d)
+                approval_latencies_min.append((dt_d - dt_c).total_seconds() / 60)
+            except (ValueError, TypeError):
+                pass
+    fast_approvals = sum(1 for m in approval_latencies_min if m < 5)
+    fast_approval_pct = (fast_approvals / len(approval_latencies_min) * 100) if approval_latencies_min else 0
+
+    # Out-of-stock rate (trace dengan stage Tool Call status=err intent mau_pesan)
+    order_attempts = [t for t in traces if t.get("intent") == "mau_pesan"]
+    oos = 0
+    for t in order_attempts:
+        for s in t.get("trace_steps") or []:
+            if s.get("stage") == "Tool Call" and s.get("status") == "err":
+                oos += 1
+                break
+    oos_rate = (oos / len(order_attempts) * 100) if order_attempts else 0
+
+    # Grounding accuracy = (Grounding status=ok) / (total dengan Grounding non-skip)
+    grounding_hit = grounding_total = 0
+    for t in traces:
+        for s in t.get("trace_steps") or []:
+            if s.get("stage") == "Grounding" and s.get("status") != "skip":
+                grounding_total += 1
+                if s.get("status") == "ok":
+                    grounding_hit += 1
+    grounding_acc = (grounding_hit / grounding_total * 100) if grounding_total else 0
+
+    # Daily series (last N days): chat count + order approvals count per hari
+    now = datetime.now(timezone.utc)
+    day_buckets = {}
+    for i in range(days - 1, -1, -1):
+        d = (now - timedelta(days=i)).date()
+        day_buckets[d.isoformat()] = {"day": d.strftime("%a"), "chat": 0, "order": 0}
+
+    for t in traces:
+        try:
+            d = datetime.fromisoformat(t["created_at"]).date().isoformat()
+            if d in day_buckets:
+                day_buckets[d]["chat"] += 1
+        except (KeyError, ValueError, TypeError):
+            pass
+    for a in approvals:
+        if a.get("status") != "approve":
+            continue
+        try:
+            d = datetime.fromisoformat(a["decided_at"]).date().isoformat()
+            if d in day_buckets:
+                day_buckets[d]["order"] += 1
+        except (KeyError, ValueError, TypeError):
+            pass
+
+    daily_series = list(day_buckets.values())
+
+    return {
+        "generated_at": _now_iso(),
+        "totals": {
+            "traces": len(traces),
+            "approvals": len(approvals),
+            "approvals_pending": sum(1 for a in approvals if a.get("status") == "pending"),
+            "approvals_decided": len(decided),
+            "order_attempts": len(order_attempts),
+        },
+        "intent_series": intent_series,
+        "daily_series": daily_series,
+        "stats": {
+            "avg_response_ms": round(avg_total_ms, 1),
+            "avg_llm_ms": round(avg_llm_ms, 1),
+            "grounding_accuracy_pct": round(grounding_acc, 1),
+            "approval_rate_pct": round(approval_rate, 1),
+            "fast_approval_pct": round(fast_approval_pct, 1),
+            "out_of_stock_rate_pct": round(oos_rate, 1),
+        },
+    }
+
+
 # ------------------ Live session (untuk Inbox trace viewer) ------------------
 @api_router.get("/agent/live-session")
 async def get_live_session():

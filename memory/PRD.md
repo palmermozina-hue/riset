@@ -64,16 +64,28 @@ Landing + demo interaktif + AI agent asli untuk **TuntasUMKM** — AI Operationa
   - Polling `/agent/owner-events` per 2.5 dtk → drain di CustomerDemo
   - Interface publik tetap sama → konsumen (CustomerDemo, OwnerDashboard, Inbox) tidak perlu diubah
 
+### 2026-08 — Phase 7 (Analytics dari Data Hidup) ✅ BARU
+- Endpoint `GET /agent/analytics/summary?days=7` — aggregate on-the-fly dari
+  `workflow_traces` + `approvals`. Return: `intent_series`, `daily_series`
+  (chat vs approved orders per hari), `stats` (avg_response_ms, avg_llm_ms,
+  grounding_accuracy_pct, approval_rate_pct, fast_approval_pct <5min,
+  out_of_stock_rate_pct), `totals`.
+- Analytics.jsx sekarang fetch endpoint tsb + auto-refresh 15 dtk + tombol
+  Refresh manual. Fallback ke seed `DAILY_SERIES`/`INTENT_SERIES` kalau
+  belum ada trace tercatat. Stat cards nampilin hint kontekstual (e.g.
+  "N trace", "M keputusan") + badge Live kalau data hidup.
+
 ## Backlog
 ### P0
 - (none)
 ### P1
-- (none — P1-A & P1-B done di Phase 6)
+- (none — P1-A, P1-B, Analytics-live done)
 ### P2
 - Streaming response (SSE) biar reply muncul token-per-token
 - Multi-turn context yang lebih dalam (>8 history)
 - WebSocket menggantikan polling supaya push instan (saat ini 2.5 dtk cukup)
 - Trace Viewer di Inbox tampilkan `llm_payload` mentah (endpoint sudah ready, tinggal wire UI)
+- Analytics: filter per-tanggal + drilldown per intent
 
 ## Next Tasks
 1. Wire Trace Viewer UI ke `GET /agent/traces/{trace_id}` — tampilkan OpenRouter request/response mentah per stage Understanding
