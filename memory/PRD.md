@@ -59,7 +59,18 @@ Landing + demo interaktif + AI agent asli untuk **TuntasUMKM** — AI Operationa
 - Multi-turn context yang lebih dalam (>8 history)
 - Dark mode juga di `/dashboard` dan `/demo`, i18n EN
 
+### 2026-08 — Phase 5 (Dark Mode Polish + i18n)
+- **Dark mode coverage** diperluas: index.css sekarang meng-override utility
+  stone/white/emerald/orange, borders, shadows, dan form controls. Landing,
+  `/dashboard`, dan `/demo` semuanya sudah dark-mode-friendly.
+- **i18n dwi-bahasa (ID/EN)**: `lib/i18n.js` context-based, persist di
+  localStorage, dengan `LanguageToggle` switch di navbar (+ versi compact di
+  topbar dashboard & header demo).
+- **ThemeToggle inline**: dipindah dari floating button ke navbar/topbar biar
+  konsisten sama LanguageToggle.
+- Terjemahan: Navbar, Hero, Footer, judul-judul section dashboard, header demo.
+
 ## Next Tasks
-1. Dark mode untuk dashboard + demo
-2. Streaming LLM response (SSE)
-3. Persistensi conversation ke MongoDB
+1. Terjemahin section-section landing lain (Problem, HowItWorks, Features, Testimonials, FAQ, Waitlist)
+2. Streaming LLM response (SSE) biar reply muncul token-per-token
+3. Persistensi conversation ke MongoDB (gantiin localStorage)
