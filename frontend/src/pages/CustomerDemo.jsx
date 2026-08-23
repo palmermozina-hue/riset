@@ -7,7 +7,7 @@ import { ChatPanel } from "@/components/demo/ChatPanel";
 import { PipelinePanel } from "@/components/demo/PipelinePanel";
 import { ScenarioPanel } from "@/components/demo/ScenarioPanel";
 import { DEMO } from "@/constants/testIds";
-import { runAgent, STAGE_NAMES, IDLE_TRACE } from "@/lib/mockAgent";
+import { runAgent, runAgentStream, STAGE_NAMES, IDLE_TRACE } from "@/lib/mockAgent";
 import {
   addApproval,
   clearOwnerEvents,
@@ -117,39 +117,92 @@ export default function CustomerDemo() {
   const handleSend = async (text) => {
     const userMsg = { from: "customer", text, at: clock() };
     const nextHistory = [...messages, userMsg];
-    setMessages(nextHistory);
+    // Placeholder agent bubble untuk streaming — text kosong, `streaming: true`
+    const placeholderAt = clock();
+    setMessages([...nextHistory, { from: "agent", text: "", at: placeholderAt, streaming: true }]);
     setThinking(true);
     setTrace(IDLE_TRACE);
 
     try {
-      const result = await runAgent(text, messages, sessionId);
-      setIntent(result.intent || "belum_ada");
-      // Animasi progresif per-stage untuk kesan pipeline "hidup"
-      result.trace.forEach((step, idx) => {
-        setTimeout(() => {
-          setTrace((prev) => {
-            const next = [...prev];
-            next[idx] = step;
+      const done = await runAgentStream(text, messages, sessionId, {
+        onChunk: (chunk) => {
+          setMessages((m) => {
+            const next = [...m];
+            const last = next[next.length - 1];
+            if (last?.streaming) {
+              next[next.length - 1] = { ...last, text: (last.text || "") + chunk };
+            }
             return next;
           });
-        }, 200 * (idx + 1));
+        },
+        onDone: (payload) => {
+          setIntent(payload.intent || "belum_ada");
+          // Animasi progresif per-stage (biar konsisten sama non-stream mode)
+          (payload.trace || []).forEach((step, idx) => {
+            setTimeout(() => {
+              setTrace((prev) => {
+                const next = [...prev];
+                next[idx] = step;
+                return next;
+              });
+            }, 200 * (idx + 1));
+          });
+        },
+      });
+
+      // Finalize placeholder → non-streaming (buat re-render clean)
+      setMessages((m) => {
+        const next = [...m];
+        const last = next[next.length - 1];
+        if (last?.streaming) {
+          next[next.length - 1] = { ...last, streaming: false, at: clock() };
+        }
+        return next;
       });
 
       setTimeout(() => {
-        setMessages((m) => [...m, { from: "agent", text: result.reply, at: clock() }]);
         setThinking(false);
-        if (result.approval) {
-          addApproval(result.approval);
-          toast.success(`Approval ${result.approval.id} dikirim ke dashboard owner`, {
+        if (done?.approval) {
+          addApproval(done.approval);
+          toast.success(`Approval ${done.approval.id} dikirim ke dashboard owner`, {
             description: "Buka /dashboard buat setujui — balasannya balik ke chat ini.",
           });
         }
       }, 200 * (STAGE_NAMES.length + 1));
     } catch (err) {
-      setThinking(false);
-      toast.error("Agent gagal merespons", {
-        description: err?.response?.data?.detail || "Coba beberapa saat lagi ya.",
-      });
+      // Fallback: pakai endpoint non-stream (biar demo tetap jalan kalau SSE mati)
+      try {
+        const result = await runAgent(text, messages, sessionId);
+        setIntent(result.intent || "belum_ada");
+        result.trace.forEach((step, idx) => {
+          setTimeout(() => {
+            setTrace((prev) => {
+              const next = [...prev];
+              next[idx] = step;
+              return next;
+            });
+          }, 200 * (idx + 1));
+        });
+        setMessages((m) => {
+          const next = [...m];
+          if (next[next.length - 1]?.streaming) next.pop();
+          next.push({ from: "agent", text: result.reply, at: clock() });
+          return next;
+        });
+        setTimeout(() => {
+          setThinking(false);
+          if (result.approval) {
+            addApproval(result.approval);
+            toast.success(`Approval ${result.approval.id} dikirim ke dashboard owner`);
+          }
+        }, 200 * (STAGE_NAMES.length + 1));
+      } catch (err2) {
+        setThinking(false);
+        setMessages((m) => (m[m.length - 1]?.streaming ? m.slice(0, -1) : m));
+        toast.error("Agent gagal merespons", {
+          description: err2?.response?.data?.detail || err?.message || "Coba beberapa saat lagi ya.",
+        });
+      }
     }
   };
 

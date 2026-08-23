@@ -62,6 +62,14 @@ export const ChatPanel = ({ messages, onSend, input, setInput, thinking }) => {
                 }`}
               >
                 {m.text}
+                {m.streaming && (
+                  <motion.span
+                    className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-emerald-700 align-middle"
+                    animate={{ opacity: [1, 0.15, 1] }}
+                    transition={{ duration: 0.9, repeat: Infinity }}
+                    data-testid="demo-stream-caret"
+                  />
+                )}
                 <p
                   className={`mt-1 text-[10px] ${
                     m.from === "customer" ? "text-emerald-200/80" : "text-stone-400"
@@ -73,7 +81,7 @@ export const ChatPanel = ({ messages, onSend, input, setInput, thinking }) => {
             </motion.div>
           ))}
         </AnimatePresence>
-        {thinking && (
+        {thinking && !messages[messages.length - 1]?.streaming && (
           <div className="flex justify-start" data-testid="demo-thinking">
             <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-white px-4 py-3 text-sm ring-1 ring-stone-200">
               {[0, 1, 2].map((d) => (

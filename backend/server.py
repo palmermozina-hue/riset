@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -578,6 +579,83 @@ async def agent_chat(req: AgentRequest):
 
     return AgentResponse(intent=intent, reply=reply, trace=trace,
                          trace_id=trace_id, approval=approval)
+
+
+@api_router.post("/agent/chat/stream")
+async def agent_chat_stream(req: AgentRequest):
+    """SSE variant — stream reply token-by-token, kirim trace+approval di event `done`.
+
+    Endpoint ini reuse logic /agent/chat: panggil LLM sekali (JSON structured),
+    lalu chunk reply.split() word-by-word supaya efek 'ngetik' terasa hidup.
+    """
+
+    async def event_stream():
+        parsed, llm_ms, raw_payload = await call_llm(req.message, req.history)
+        intent = parsed.get("intent", "lainnya")
+        sku = parsed.get("sku")
+        qty = parsed.get("qty")
+        reply = parsed.get("reply") or "Halo kak 👋 ada yang bisa aku bantu?"
+        confidence = float(parsed.get("confidence", 0.7))
+
+        approval: Optional[ApprovalItem] = None
+        approval_id: Optional[str] = None
+        product = next((p for p in PRODUCTS if p["sku"] == sku), None) if sku else None
+        if intent == "mau_pesan" and product and qty and product["stock"] > 0:
+            try:
+                qty_i = int(qty)
+            except (TypeError, ValueError):
+                qty_i = None
+            if qty_i and qty_i > 0:
+                total = product["price"] * qty_i
+                approval_id = f"APV-{2600 + int(uuid.uuid4().int % 900)}"
+                risk = "tinggi" if total >= 500000 else "sedang" if total >= 150000 else "rendah"
+                approval = ApprovalItem(
+                    id=approval_id, customer="Tamu Demo", channel="Web Chat",
+                    action="Buat pesanan", risk=risk, createdAt="baru saja",
+                    total=total,
+                    items=[{"name": product["name"], "qty": qty_i, "price": product["price"]}],
+                    note=f"Order via stream demo TuntasUMKM (LLM: {OPENROUTER_MODEL}).",
+                )
+                await db.approvals.update_one(
+                    {"id": approval_id},
+                    {"$set": {
+                        **approval.model_dump(), "session_id": req.session_id,
+                        "status": "pending", "created_at": _now_iso(),
+                    }},
+                    upsert=True,
+                )
+
+        trace = build_trace(intent, sku, qty, req.session_id, confidence, llm_ms, approval_id)
+        trace_id = str(uuid.uuid4())
+        trace_steps_dump = [t.model_dump() for t in trace]
+        await _save_trace(trace_id, req.session_id, req.message, parsed,
+                          trace_steps_dump, raw_payload, approval_id)
+
+        # Start event — front-end pakai buat placeholder pesan agent
+        yield f"data: {json.dumps({'type': 'start', 'trace_id': trace_id})}\n\n"
+
+        # Chunk reply per kata (natural typing effect). Batasi <= 40ms/word
+        tokens = reply.split(" ")
+        for i, tok in enumerate(tokens):
+            chunk = tok if i == 0 else " " + tok
+            yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
+            await asyncio.sleep(0.045)
+
+        done_payload = {
+            "type": "done",
+            "intent": intent,
+            "reply": reply,
+            "trace": trace_steps_dump,
+            "trace_id": trace_id,
+            "approval": approval.model_dump() if approval else None,
+        }
+        yield f"data: {json.dumps(done_payload)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ------------------ Conversations ------------------
