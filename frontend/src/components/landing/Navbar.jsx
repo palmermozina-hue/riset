@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Menu, X, Zap } from "lucide-react";
 
 const LINKS = [
@@ -60,7 +61,14 @@ export const Navbar = () => {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-3 md:flex">
+          <Link
+            to="/auth"
+            data-testid="nav-login-link"
+            className="text-sm font-semibold text-stone-700 transition-colors hover:text-orange-600"
+          >
+            Masuk
+          </Link>
           <a
             href="#waitlist"
             data-testid="nav-cta-waitlist"
@@ -96,6 +104,14 @@ export const Navbar = () => {
               {l.label}
             </a>
           ))}
+          <Link
+            to="/auth"
+            onClick={() => setOpen(false)}
+            data-testid="nav-mobile-login-link"
+            className="block border-b border-stone-100 py-3 text-sm font-medium text-stone-700"
+          >
+            Masuk
+          </Link>
           <a
             href="#waitlist"
             onClick={() => setOpen(false)}
