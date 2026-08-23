@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   ClipboardCheck,
+  Gauge,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -25,6 +26,7 @@ export const NAV = [
   { id: "inbox", label: "Inbox Chat", icon: MessagesSquare, badgeKey: "inbox" },
   { id: "katalog", label: "Katalog & Stok", icon: Package },
   { id: "analitik", label: "Analitik", icon: BarChart3 },
+  { id: "benchmark", label: "Benchmark", icon: Gauge },
   { id: "pengaturan", label: "Pengaturan", icon: SettingsIcon },
 ];
 

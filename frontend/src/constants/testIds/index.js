@@ -7,3 +7,4 @@ export * from './home';
 export * from './dashboard';
 export * from './demo';
 export * from './settings';
+export * from './benchmark';
