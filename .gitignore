@@ -94,3 +94,19 @@ frontend/node_modules/.cache/default-development/5.pack
 *.env
 !.env.example
 frontend/node_modules/.cache/default-development/0.pack
+.insforge/
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf

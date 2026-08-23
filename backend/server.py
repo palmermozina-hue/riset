@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+from insforge_client import ping as insforge_ping  # noqa: E402
+
 # MongoDB (template — belum dipakai untuk agent)
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -352,6 +354,11 @@ async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
 @api_router.get("/")
 async def root():
     return {"message": "TuntasUMKM API online", "model": OPENROUTER_MODEL}
+
+@api_router.get("/insforge/health")
+async def insforge_health():
+    """Cek koneksi ke InsForge (REST) — dipakai buat verifikasi setup."""
+    return await insforge_ping()
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
