@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ChatPanel } from "@/components/demo/ChatPanel";
 import { PipelinePanel } from "@/components/demo/PipelinePanel";
 import { DEMO } from "@/constants/testIds";
-import { runAgent, STAGE_NAMES } from "@/lib/mockAgent";
+import { runAgent, STAGE_NAMES, IDLE_TRACE } from "@/lib/mockAgent";
 import { addApproval } from "@/lib/mockStore";
 
 const initialMessages = [
@@ -16,8 +16,6 @@ const initialMessages = [
     at: "sekarang",
   },
 ];
-
-const IDLE_TRACE = STAGE_NAMES.map(() => ({ status: "idle", detail: "—", ms: 0 }));
 
 export default function CustomerDemo() {
   const [messages, setMessages] = useState(initialMessages);
@@ -37,36 +35,42 @@ export default function CustomerDemo() {
     return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   };
 
-  const handleSend = (text) => {
+  const handleSend = async (text) => {
     const userMsg = { from: "customer", text, at: now() };
-    setMessages((m) => [...m, userMsg]);
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
     setThinking(true);
     setTrace(IDLE_TRACE);
 
-    const result = runAgent(text, sessionId);
+    try {
+      const result = await runAgent(text, messages, sessionId);
+      // Animasi progresif per-stage untuk kesan pipeline "hidup"
+      result.trace.forEach((step, idx) => {
+        setTimeout(() => {
+          setTrace((prev) => {
+            const next = [...prev];
+            next[idx] = step;
+            return next;
+          });
+        }, 200 * (idx + 1));
+      });
 
-    // Animasi progresif per-stage untuk kesan pipeline "hidup"
-    result.trace.forEach((step, idx) => {
       setTimeout(() => {
-        setTrace((prev) => {
-          const next = [...prev];
-          next[idx] = step;
-          return next;
-        });
-      }, 220 * (idx + 1));
-    });
-
-    setTimeout(() => {
-      setMessages((m) => [...m, { from: "agent", text: result.reply, at: now() }]);
+        setMessages((m) => [...m, { from: "agent", text: result.reply, at: now() }]);
+        setThinking(false);
+        if (result.approval) {
+          addApproval(result.approval);
+          toast.success(`Approval ${result.approval.id} dikirim ke dashboard owner`, {
+            description: "Buka /dashboard buat setujui pesanannya.",
+          });
+        }
+      }, 200 * (STAGE_NAMES.length + 1));
+    } catch (err) {
       setThinking(false);
-      if (result.approval) {
-        addApproval(result.approval);
-        toast.success(
-          `Approval ${result.approval.id} dikirim ke dashboard owner`,
-          { description: "Buka /dashboard buat setujui pesanannya." }
-        );
-      }
-    }, 220 * (STAGE_NAMES.length + 1));
+      toast.error("Agent gagal merespons", {
+        description: err?.response?.data?.detail || "Coba beberapa saat lagi ya.",
+      });
+    }
   };
 
   const reset = () => {
@@ -89,7 +93,7 @@ export default function CustomerDemo() {
             <ArrowLeft size={16} /> Balik ke beranda
           </Link>
           <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-800 md:inline-flex">
-            <Sparkles size={12} /> Live demo · mock agent
+            <Sparkles size={12} /> Live · powered by stealth/ox-alpha
           </span>
           <div className="flex items-center gap-2">
             <button

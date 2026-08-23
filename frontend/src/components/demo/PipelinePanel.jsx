@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { AlertTriangle, Check, Circle, Clock, XCircle, MinusCircle } from "lucide-react";
 import { DEMO } from "@/constants/testIds";
-import { STAGE_NAMES } from "@/lib/mockAgent";
+import { STAGE_NAMES, IDLE_TRACE } from "@/lib/mockAgent";
 
 const STATUS_META = {
   ok: { icon: Check, bg: "bg-emerald-800", ring: "ring-emerald-200", label: "OK" },
@@ -12,7 +12,7 @@ const STATUS_META = {
   idle: { icon: Circle, bg: "bg-stone-200", ring: "ring-transparent", label: "IDLE" },
 };
 
-const emptyTrace = STAGE_NAMES.map(() => ({ status: "idle", detail: "—", ms: 0 }));
+const emptyTrace = IDLE_TRACE;
 
 export const PipelinePanel = ({ trace = emptyTrace, running }) => {
   const totalMs = trace.reduce((s, t) => s + (t.ms || 0), 0);
