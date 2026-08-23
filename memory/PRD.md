@@ -75,6 +75,13 @@ Landing + demo interaktif + AI agent asli untuk **TuntasUMKM** — AI Operationa
   belum ada trace tercatat. Stat cards nampilin hint kontekstual (e.g.
   "N trace", "M keputusan") + badge Live kalau data hidup.
 
+### 2026-08 — Phase 8 (Idempotency Key & Duplicate Prevention) ✅ BARU
+- **Header Idempotency-Key** di `/api/agent/chat` dan `/api/agent/chat/stream`:
+  - Menerima header case-insensitive `Idempotency-Key` (alias standard FastAPI).
+  - Jika key sudah pernah diproses dan ada di MongoDB (`idempotency` collection), endpoint langsung mengembalikan data respons lama (Approval lama, Trace lama, dan reply yang sama).
+  - Mencegah pembuatan order ganda/approval ganda dan menghindari panggilan LLM duplikat.
+  - Berhasil diuji end-to-end melalui automated testing suite di `tests/test_idempotency.py` dengan tingkat keberhasilan 100%.
+
 ## Backlog
 ### P0
 - (none)

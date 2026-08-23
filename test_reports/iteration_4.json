@@ -1,0 +1,17 @@
+{
+  "summary": "Executed /app/tests/test_idempotency.py and manual curl tests against public URL. All three idempotency scenarios pass: (1) unique key generates approval and stores in Mongo, (2) same key returns identical approval_id/trace_id/reply from cache without duplicate DB entry, (3) different key generates a new distinct approval and trace.",
+  "tested_scope": ["backend", "integration"],
+  "passed": [
+    "POST /api/agent/chat with unique Idempotency-Key returns 200 with approval (APV-XXXX) and trace_id",
+    "Approval document persisted in MongoDB (approvals collection)",
+    "Duplicate request with SAME Idempotency-Key returns identical approval_id, trace_id, and reply (cached)",
+    "MongoDB has exactly 1 approval doc for repeated key (no duplicates)",
+    "Request with DIFFERENT Idempotency-Key generates distinct approval_id and trace_id",
+    "Public backend URL (https://idempotent-agent.preview.emergentagent.com/api/agent/chat) exhibits same idempotency behavior via curl"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only task)"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -527,7 +527,12 @@ async def get_products():
 
 
 @api_router.post("/agent/chat", response_model=AgentResponse)
-async def agent_chat(req: AgentRequest):
+async def agent_chat(req: AgentRequest, idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")):
+    if idempotency_key:
+        existing = await db.idempotency.find_one({"key": idempotency_key}, {"_id": 0})
+        if existing:
+            return AgentResponse(**existing["response"])
+
     parsed, llm_ms, raw_payload = await call_llm(req.message, req.history)
     intent = parsed.get("intent", "lainnya")
     sku = parsed.get("sku")
@@ -577,17 +582,66 @@ async def agent_chat(req: AgentRequest):
     await _save_trace(trace_id, req.session_id, req.message, parsed,
                       trace_steps_dump, raw_payload, approval_id)
 
-    return AgentResponse(intent=intent, reply=reply, trace=trace,
-                         trace_id=trace_id, approval=approval)
+    response_data = AgentResponse(intent=intent, reply=reply, trace=trace,
+                                 trace_id=trace_id, approval=approval)
+
+    if idempotency_key:
+        await db.idempotency.update_one(
+            {"key": idempotency_key},
+            {"$set": {
+                "key": idempotency_key,
+                "response": response_data.model_dump(),
+                "created_at": _now_iso(),
+            }},
+            upsert=True,
+        )
+
+    return response_data
 
 
 @api_router.post("/agent/chat/stream")
-async def agent_chat_stream(req: AgentRequest):
+async def agent_chat_stream(req: AgentRequest, idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")):
     """SSE variant — stream reply token-by-token, kirim trace+approval di event `done`.
 
     Endpoint ini reuse logic /agent/chat: panggil LLM sekali (JSON structured),
     lalu chunk reply.split() word-by-word supaya efek 'ngetik' terasa hidup.
     """
+    if idempotency_key:
+        existing = await db.idempotency.find_one({"key": idempotency_key}, {"_id": 0})
+        if existing:
+            # key sama -> stream approval lama, bukan bikin order ganda
+            resp_dict = existing["response"]
+
+            async def event_stream_cached():
+                trace_id = resp_dict.get("trace_id")
+                reply = resp_dict.get("reply")
+                intent = resp_dict.get("intent")
+                trace = resp_dict.get("trace", [])
+                approval = resp_dict.get("approval")
+
+                yield f"data: {json.dumps({'type': 'start', 'trace_id': trace_id})}\n\n"
+
+                tokens = reply.split(" ")
+                for i, tok in enumerate(tokens):
+                    chunk = tok if i == 0 else " " + tok
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': chunk})}\n\n"
+                    await asyncio.sleep(0.045)
+
+                done_payload = {
+                    "type": "done",
+                    "intent": intent,
+                    "reply": reply,
+                    "trace": trace,
+                    "trace_id": trace_id,
+                    "approval": approval,
+                }
+                yield f"data: {json.dumps(done_payload)}\n\n"
+
+            return StreamingResponse(
+                event_stream_cached(),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
 
     async def event_stream():
         parsed, llm_ms, raw_payload = await call_llm(req.message, req.history)
@@ -649,6 +703,24 @@ async def agent_chat_stream(req: AgentRequest):
             "trace_id": trace_id,
             "approval": approval.model_dump() if approval else None,
         }
+
+        if idempotency_key:
+            await db.idempotency.update_one(
+                {"key": idempotency_key},
+                {"$set": {
+                    "key": idempotency_key,
+                    "response": {
+                        "intent": intent,
+                        "reply": reply,
+                        "trace": trace_steps_dump,
+                        "trace_id": trace_id,
+                        "approval": done_payload["approval"],
+                    },
+                    "created_at": _now_iso(),
+                }},
+                upsert=True,
+            )
+
         yield f"data: {json.dumps(done_payload)}\n\n"
 
     return StreamingResponse(
