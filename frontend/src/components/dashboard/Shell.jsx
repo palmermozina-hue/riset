@@ -10,6 +10,7 @@ import {
   Menu,
   MessagesSquare,
   Package,
+  ScrollText,
   Settings as SettingsIcon,
   X,
   Zap,
@@ -27,6 +28,7 @@ export const NAV = [
   { id: "katalog", label: "Katalog & Stok", icon: Package },
   { id: "analitik", label: "Analitik", icon: BarChart3 },
   { id: "benchmark", label: "Benchmark", icon: Gauge },
+  { id: "audit", label: "Audit Log", icon: ScrollText },
   { id: "pengaturan", label: "Pengaturan", icon: SettingsIcon },
 ];
 

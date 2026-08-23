@@ -1029,6 +1029,231 @@ async def put_live_session(payload: LiveSessionPayload):
     return {"ok": True}
 
 
+# ------------------ Audit Log (log kronologis semua aksi agent) ------------------
+AUDIT_ACTIONS = {
+    "intake": "Pesan masuk",
+    "understanding": "Klasifikasi intent",
+    "grounding": "Grounding katalog",
+    "tool_call": "Tool call",
+    "approval_request": "Minta approval",
+    "approval_decision": "Keputusan owner",
+    "stock_change": "Perubahan stok",
+    "response": "Balasan terkirim",
+    "analytics": "Event analytics",
+    "notification": "Notifikasi ke pelanggan",
+}
+
+_STAGE_TO_ACTION = {
+    "Intake": "intake",
+    "Understanding": "understanding",
+    "Grounding": "grounding",
+    "Tool Call": "tool_call",
+    "Approval": "approval_request",
+    "Response": "response",
+    "Analytics": "analytics",
+}
+
+
+def _shift_iso(base_iso: Optional[str], ms: int) -> str:
+    from datetime import timedelta
+    try:
+        return (datetime.fromisoformat(base_iso) + timedelta(milliseconds=ms)).isoformat()
+    except (TypeError, ValueError):
+        return base_iso or _now_iso()
+
+
+async def _collect_audit_events() -> List[dict]:
+    """Gabungkan workflow_traces + approvals + owner_events jadi satu timeline."""
+    events: List[dict] = []
+
+    traces = await db.workflow_traces.find({}, {"_id": 0}).sort("created_at", -1).to_list(3000)
+    for t in traces:
+        base = t.get("created_at")
+        cum = 0
+        for idx, s in enumerate(t.get("trace_steps") or []):
+            stage = s.get("stage")
+            status = s.get("status")
+            if stage == "Approval" and (status == "skip" or t.get("approval_id")):
+                continue  # gate yang bener-bener jalan dicatat dari collection approvals
+            cum += s.get("ms") or 0
+            events.append({
+                "event_id": f"trace:{t.get('trace_id')}:{idx}",
+                "at": _shift_iso(base, cum),
+                "actor": "agent",
+                "action": _STAGE_TO_ACTION.get(stage, "analytics"),
+                "stage": stage,
+                "status": status,
+                "summary": s.get("detail"),
+                "trace_id": t.get("trace_id"),
+                "session_id": t.get("session_id"),
+                "approval_id": t.get("approval_id"),
+                "duration_ms": s.get("ms") or 0,
+                "meta": {
+                    "intent": t.get("intent"),
+                    "sku": t.get("sku"),
+                    "qty": t.get("qty"),
+                    "confidence": t.get("confidence"),
+                    "customer_message": t.get("customer_message"),
+                },
+            })
+
+    approvals = await db.approvals.find({}, {"_id": 0}).sort("created_at", -1).to_list(3000)
+    for a in approvals:
+        items = a.get("items") or []
+        item_txt = ", ".join(f"{i.get('qty')}× {i.get('name')}" for i in items) or "—"
+        events.append({
+            "event_id": f"approval:{a.get('id')}:request",
+            "at": a.get("created_at") or _now_iso(),
+            "actor": "agent",
+            "action": "approval_request",
+            "stage": "Approval",
+            "status": "wait" if a.get("status") == "pending" else "ok",
+            "summary": f"{a.get('action')} · {item_txt} · Rp{(a.get('total') or 0):,} "
+                       f"(risiko {a.get('risk')})",
+            "trace_id": None,
+            "session_id": a.get("session_id"),
+            "approval_id": a.get("id"),
+            "duration_ms": 0,
+            "meta": {"customer": a.get("customer"), "channel": a.get("channel"),
+                     "total": a.get("total"), "items": items, "note": a.get("note")},
+        })
+
+        if a.get("status") in ("approve", "reject"):
+            events.append({
+                "event_id": f"approval:{a.get('id')}:decision",
+                "at": a.get("decided_at") or a.get("created_at") or _now_iso(),
+                "actor": "owner",
+                "action": "approval_decision",
+                "stage": "Approval",
+                "status": a.get("status"),
+                "summary": f"Owner {'menyetujui' if a.get('status') == 'approve' else 'menolak'} "
+                           f"{a.get('id')} — {a.get('action')}"
+                           + (f" · alasan: {a.get('reason')}" if a.get("reason") else ""),
+                "trace_id": None,
+                "session_id": a.get("session_id"),
+                "approval_id": a.get("id"),
+                "duration_ms": 0,
+                "meta": {"customer": a.get("customer"), "total": a.get("total"),
+                         "reason": a.get("reason"), "items": items},
+            })
+
+            if a.get("status") == "approve":
+                for i in items:
+                    name = i.get("name")
+                    product = next((p for p in PRODUCTS if p["name"] == name), None)
+                    qty = i.get("qty") or 0
+                    is_restock = (a.get("action") or "").lower().startswith("update stok")
+                    delta = qty if is_restock else -qty
+                    before = product["stock"] if product else None
+                    events.append({
+                        "event_id": f"stock:{a.get('id')}:{name}",
+                        "at": a.get("decided_at") or _now_iso(),
+                        "actor": "system",
+                        "action": "stock_change",
+                        "stage": "Tool Call",
+                        "status": "ok",
+                        "summary": f"update_stok({product['sku'] if product else name}) "
+                                   f"{delta:+d} → stok {(before + delta) if before is not None else '?'}",
+                        "trace_id": None,
+                        "session_id": a.get("session_id"),
+                        "approval_id": a.get("id"),
+                        "duration_ms": 0,
+                        "meta": {"sku": product["sku"] if product else None, "product": name,
+                                 "delta": delta, "stock_before": before,
+                                 "stock_after": (before + delta) if before is not None else None},
+                    })
+
+    owner_events = await db.owner_events.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    for e in owner_events:
+        events.append({
+            "event_id": f"notif:{e.get('event_id')}",
+            "at": e.get("created_at") or _now_iso(),
+            "actor": "agent",
+            "action": "notification",
+            "stage": "Response",
+            "status": "ok" if e.get("consumed") else "wait",
+            "summary": f"Keputusan {e.get('decision')} untuk {e.get('approval_id')} "
+                       f"dikirim balik ke chat {e.get('customer') or 'pelanggan'}",
+            "trace_id": None,
+            "session_id": e.get("session_id"),
+            "approval_id": e.get("approval_id"),
+            "duration_ms": 0,
+            "meta": {"decision": e.get("decision"), "reason": e.get("reason"),
+                     "consumed": e.get("consumed")},
+        })
+
+    events.sort(key=lambda x: x.get("at") or "", reverse=True)
+    return events
+
+
+def _match_audit(e: dict, actions: Optional[set], status: Optional[str],
+                 actor: Optional[str], date_from: Optional[str],
+                 date_to: Optional[str], q: Optional[str]) -> bool:
+    if actions and e["action"] not in actions:
+        return False
+    if status and status != "all" and e.get("status") != status:
+        return False
+    if actor and actor != "all" and e.get("actor") != actor:
+        return False
+    at = e.get("at") or ""
+    if date_from and at < date_from:
+        return False
+    if date_to and at > date_to:
+        return False
+    if q:
+        blob = json.dumps({k: e.get(k) for k in
+                           ("summary", "session_id", "trace_id", "approval_id", "stage", "meta")},
+                          default=str).lower()
+        if q.lower() not in blob:
+            return False
+    return True
+
+
+@api_router.get("/agent/audit-log")
+async def audit_log(
+    q: Optional[str] = None,
+    action: Optional[str] = None,
+    status: Optional[str] = None,
+    actor: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Timeline kronologis semua aksi agent + owner, bisa difilter & dicari.
+
+    - `action`: comma separated (mis. `tool_call,approval_decision,stock_change`)
+    - `status`: ok | warn | err | wait | skip | approve | reject | all
+    - `date_from` / `date_to`: ISO date atau datetime (inklusif)
+    """
+    await _ensure_seed_approvals()
+    all_events = await _collect_audit_events()
+
+    action_set = {a.strip() for a in action.split(",") if a.strip()} if action else None
+    # normalisasi date_to jadi akhir hari kalau cuma tanggal
+    if date_to and len(date_to) == 10:
+        date_to = f"{date_to}T23:59:59.999999+00:00"
+
+    filtered = [e for e in all_events
+                if _match_audit(e, action_set, status, actor, date_from, date_to, q)]
+
+    from collections import Counter
+    counts_action = Counter(e["action"] for e in filtered)
+    counts_status = Counter(e.get("status") or "unknown" for e in filtered)
+
+    return {
+        "generated_at": _now_iso(),
+        "total": len(filtered),
+        "total_unfiltered": len(all_events),
+        "limit": limit,
+        "offset": offset,
+        "action_labels": AUDIT_ACTIONS,
+        "counts_by_action": dict(counts_action),
+        "counts_by_status": dict(counts_status),
+        "events": filtered[offset:offset + limit],
+    }
+
+
 # =========================================================================
 # App wiring
 # =========================================================================

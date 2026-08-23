@@ -51,6 +51,8 @@ const dict = {
     "dash.analitik.sub": "Tren percakapan, pesanan, dan performa agent.",
     "dash.benchmark.title": "Benchmark & Impact",
     "dash.benchmark.sub": "Bukti dampak terukur — manual vs agent, 32 percakapan uji.",
+    "dash.audit.title": "Audit log",
+    "dash.audit.sub": "Kronologi semua aksi agent — tool call, approval, sampai perubahan stok.",
     "dash.pengaturan.title": "Pengaturan",
     "dash.pengaturan.sub": "Profil toko, siapa saja yang punya akses, dan aturan main agent.",
 
@@ -113,6 +115,8 @@ const dict = {
     "dash.analitik.sub": "Conversation, order, and agent performance trends.",
     "dash.benchmark.title": "Benchmark & Impact",
     "dash.benchmark.sub": "Measurable proof — manual vs agent across 32 synthetic conversations.",
+    "dash.audit.title": "Audit log",
+    "dash.audit.sub": "Chronological log of every agent action — tool calls, approvals, stock changes.",
     "dash.pengaturan.title": "Settings",
     "dash.pengaturan.sub": "Store profile, who has access, and the agent's ground rules.",
 
