@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { ArrowRight, PlayCircle, Sparkles } from "lucide-react";
 import { ChatMockup } from "@/components/landing/ChatMockup";
 
@@ -62,14 +63,14 @@ export const Hero = () => (
         </motion.p>
 
         <motion.div {...fade(0.3)} className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <a
-            href="#demo"
+          <Link
+            to="/demo"
             data-testid="hero-cta-primary"
             className="group inline-flex items-center justify-center gap-2 rounded-full bg-orange-600 px-7 py-4 text-sm font-semibold text-white transition-colors hover:bg-orange-700 active:scale-95"
           >
-            Coba Demo
+            Coba Demo Interaktif
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-          </a>
+          </Link>
           <a
             href="#cara-kerja"
             data-testid="hero-cta-secondary"

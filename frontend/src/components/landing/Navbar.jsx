@@ -6,7 +6,7 @@ const LINKS = [
   { label: "Masalah", href: "#masalah", id: "masalah" },
   { label: "Cara Kerja", href: "#cara-kerja", id: "cara-kerja" },
   { label: "Fitur", href: "#fitur", id: "fitur" },
-  { label: "Demo", href: "#demo", id: "demo" },
+  { label: "Demo Preview", href: "#demo", id: "demo" },
 ];
 
 export const Logo = ({ light = false }) => (
@@ -69,13 +69,13 @@ export const Navbar = () => {
           >
             Masuk
           </Link>
-          <a
-            href="#waitlist"
-            data-testid="nav-cta-waitlist"
+          <Link
+            to="/demo"
+            data-testid="nav-cta-demo"
             className="inline-flex items-center rounded-full bg-emerald-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-950 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
           >
-            Gabung Waitlist
-          </a>
+            Coba Demo Live
+          </Link>
         </div>
 
         <button

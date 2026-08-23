@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Landing from "@/pages/Landing";
 import Auth from "@/pages/Auth";
 import OwnerDashboard from "@/pages/OwnerDashboard";
+import CustomerDemo from "@/pages/CustomerDemo";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<OwnerDashboard />} />
+          <Route path="/demo" element={<CustomerDemo />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-center" richColors />

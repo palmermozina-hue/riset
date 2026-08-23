@@ -1,59 +1,58 @@
 # TuntasUMKM — PRD (Living Doc)
 
 ## Original Problem Statement
-Landing page marketing untuk **TuntasUMKM** — AI Operational Agent buat UMKM Indonesia. Phase 1: landing page statis, fokus konversi visitor jadi lead/demo request untuk presentasi AI Hackfest 2026. Belum konek backend; semua tombol mock.
+Landing page + demo interaktif untuk **TuntasUMKM** — AI Operational Agent buat UMKM Indonesia. Fokus konversi visitor + wow factor untuk juri AI Hackfest 2026. Semua tetap FE mock, belum ada backend real.
 
 ## User Choices (locked)
-- Brand: bebas ideasi (agent yang tentuin warna/logo)
-- Tone copy: kasual & hangat bahasa Indonesia ("kamu", "nggak")
-- Waitlist form: mock saja (console.log + toast)
-- Aset visual: kombinasi foto stok + mockup UI dibangun pakai kode
-- Next phase: fokus landing page dulu
+- Brand & design ikut repo (Emerald/Terracotta, Outfit + Plus Jakarta Sans)
+- Fokus FE only, backend belum
+- Push ke branch `main`
+- Efisiensi credit — 1 fitur besar per iterasi
 
 ## User Personas
-1. **Owner UMKM** (F&B, fashion, elektronik) — capek balesin chat repetitif, cari solusi praktis.
-2. **Juri AI Hackfest 2026** — nilai kejelasan value prop, kedalaman teknis (7-stage pipeline), polish.
-3. **Early adopter / pilot user** — mau daftar waitlist.
+1. **Owner UMKM** — pengelola toko yang butuh dashboard approval + monitoring
+2. **Juri AI Hackfest 2026** — nilai kejelasan value prop, demo interaktif, differentiator teknis
+3. **Pelanggan / visitor demo** — coba jadi customer via `/demo` publik
 
-## Architecture
-- Frontend: React 19 (CRA + craco), Tailwind, shadcn/ui, framer-motion, lucide-react, sonner
-- Single route `/` → `src/pages/Landing.jsx`, section components di `src/components/landing/`
-- Copy & mock data terpusat di `src/data/content.js`
-- Backend FastAPI + MongoDB: masih template default, belum dipakai
+## Architecture (FE-only)
+- React 19 + CRA/craco, Tailwind, shadcn/ui, framer-motion, lucide-react, sonner
+- Routes: `/` (Landing), `/auth` (Login/Register mock), `/dashboard` (Owner), `/demo` (Customer chat + pipeline live)
+- Cross-page state: `lib/mockStore.js` — localStorage-backed approval + conversation store
+- Scripted agent: `lib/mockAgent.js` — 7-stage pipeline simulator dengan intent detection sederhana
+- Copy & mock data di `data/content.js` + `data/mockDashboard.js`
+- Backend FastAPI + MongoDB masih template default, belum dipakai
 
-## Design System
-- Archetype: Organic & Earthy (trust + warmth)
-- Primary Deep Emerald `#064E3B`, Accent Terracotta `#EA580C`, Background Stone-50 `#FAFAF9`
-- Font: Outfit (heading) + Plus Jakarta Sans (body)
-- Pill buttons, rounded-3xl cards, dotted-grid texture, glassmorphism nav
-
-## Implemented (2026-06)
+## Implemented
+### 2026-06 — Phase 1 (Landing)
 - Sticky glass navbar + mobile hamburger
-- Hero: headline "Agen AI yang nggak cuma jawab, tapi bertindak", dual CTA, 3 stat strip, code-built chat mockup dengan approval card
-- Problem: stat 64% + 3 pain point
-- How It Works: 7-stage pipeline interaktif (klik untuk highlight), horizontal scroll
-- Features: bento grid 7 kartu asimetris
-- Differentiator: tabel Chatbot Biasa vs TuntasUMKM
-- Demo Preview: mockup chat + dashboard operasional (KPI, bar chart produk, antrean approval) — semua HTML/Tailwind
-- Segments: 3 kartu use case dengan foto + gradient overlay
-- Waitlist: form MOCK (validasi email, toast, success state)
-- Footer: link PRD, GitHub repo, hackathon
-- Testing: iteration_1 — 100% frontend pass (15 checks, 0 issue)
+- Hero, Problem, HowItWorks (7-stage), Features (bento), Differentiator, DemoPreview, Segments, Waitlist, Footer
+- Auth mock (login/register)
+- Owner Dashboard: Overview, ApprovalQueue, Inbox, Catalog, Analytics
+
+### 2026-08 — Phase 2 (Interactive Demo)
+- `/demo` — Customer Chat Simulator dengan split view: chat + observable pipeline
+- Scripted agent handles: `tanya_stok`, `tanya_produk`, `mau_pesan`, `keluhan`, `lainnya`
+- 7-stage pipeline animate progresif (220ms per stage) dengan status: ok/wait/skip/warn/err/idle
+- Approval otomatis push ke `mockStore` → langsung muncul di `/dashboard` (subscribed via listener)
+- Quick reply chips (stok, harga, pesan, keluhan) untuk juri cepet coba
+- Reset button + link balik ke beranda + shortcut ke dashboard owner
+- Landing CTA "Coba Demo" & nav CTA sekarang route ke `/demo` (bukan scroll ke mockup)
 
 ## Backlog
 ### P0
-- (none — Phase 1 selesai)
+- (none — Phase 2 selesai)
 ### P1
-- Chat Simulator interaktif (user bisa ngetik, agent balas via LLM)
-- Approval Queue Dashboard (approve/reject aksi agent)
-- Waitlist beneran simpan email ke MongoDB + notifikasi email
+- Sinkronisasi realtime dua arah: owner approve → agent chat lanjut kirim konfirmasi ke pelanggan
+- Trace viewer di dashboard (klik conversation → lihat 7-stage detail)
+- Backend real: FastAPI + MongoDB, connect LLM (Claude Sonnet / GPT via Emergent LLM Key)
 ### P2
 - Testimonial / social proof section
 - FAQ accordion
 - Dark mode & i18n (EN)
-- Deploy prep + custom domain
+- Deploy prep (Cloud VPS AI Hosting IDwebhost)
 
 ## Next Tasks
-1. Review copy & visual sama user, revisi kalau perlu
-2. Pilih Phase 2: Chat Simulator atau Approval Queue
-3. Sambungkan CTA "Coba Demo" ke produk Phase 2
+1. **Two-way sync**: owner approve → customer chat dapat notif "pesananmu sudah dikonfirmasi"
+2. **Trace viewer** di inbox dashboard — lihat 7-stage per percakapan
+3. **Backend integration**: MongoDB + Claude Sonnet buat NLU/response asli
+4. **Analytics real**: hitung metrik dari data yang beneran ada di store
