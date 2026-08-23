@@ -5,19 +5,22 @@ import Landing from "@/pages/Landing";
 import Auth from "@/pages/Auth";
 import OwnerDashboard from "@/pages/OwnerDashboard";
 import CustomerDemo from "@/pages/CustomerDemo";
+import { I18nProvider } from "@/lib/i18n";
 
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={<OwnerDashboard />} />
-          <Route path="/demo" element={<CustomerDemo />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster position="top-center" richColors />
+      <I18nProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<OwnerDashboard />} />
+            <Route path="/demo" element={<CustomerDemo />} />
+          </Routes>
+        </BrowserRouter>
+        <Toaster position="top-center" richColors />
+      </I18nProvider>
     </div>
   );
 }

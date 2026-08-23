@@ -15,6 +15,8 @@ import {
 import { toast } from "sonner";
 import { DASHBOARD, LOGOUT } from "@/constants/testIds";
 import { signOut } from "@/lib/mockAuth";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const NAV = [
   { id: "ringkasan", label: "Ringkasan", icon: LayoutDashboard },
@@ -68,7 +70,7 @@ export const Shell = ({ active, onChange, badges, user, children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50" data-testid={DASHBOARD.page}>
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950" data-testid={DASHBOARD.page}>
       {/* Sidebar desktop */}
       <aside
         className="fixed inset-y-0 left-0 hidden w-[264px] flex-col justify-between bg-emerald-950 p-5 lg:flex"
@@ -109,7 +111,7 @@ export const Shell = ({ active, onChange, badges, user, children }) => {
 
       {/* Topbar */}
       <div className="lg:pl-[264px]">
-        <header className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-stone-200 bg-white/80 px-5 py-3.5 backdrop-blur-xl lg:px-9">
+        <header className="sticky top-0 z-40 flex items-center justify-between gap-4 border-b border-stone-200 bg-white/80 px-5 py-3.5 backdrop-blur-xl lg:px-9 dark:border-stone-800 dark:bg-stone-900/80">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setOpen((v) => !v)}
@@ -128,6 +130,8 @@ export const Shell = ({ active, onChange, badges, user, children }) => {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <LanguageToggle />
+            <ThemeToggle inline />
             <button
               onClick={() => toast.info(`${badges?.approval || 0} aksi masih nunggu persetujuan kamu.`)}
               data-testid="dashboard-notif-button"

@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight, PlayCircle, Sparkles } from "lucide-react";
 import { ChatMockup } from "@/components/landing/ChatMockup";
+import { useT } from "@/lib/i18n";
 
 const fade = (d) => ({
   initial: { opacity: 0, y: 22 },
@@ -9,7 +10,9 @@ const fade = (d) => ({
   transition: { duration: 0.7, delay: d, ease: [0.22, 1, 0.36, 1] },
 });
 
-export const Hero = () => (
+export const Hero = () => {
+  const t = useT();
+  return (
   <section id="top" className="relative overflow-hidden pb-20 pt-32 lg:pb-32 lg:pt-40">
     <div className="pointer-events-none absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-emerald-200/40 blur-3xl" />
     <div className="pointer-events-none absolute inset-0 dotted-grid opacity-40" />
@@ -25,7 +28,7 @@ export const Hero = () => (
         <motion.div {...fade(0)}>
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-emerald-800">
             <Sparkles size={13} className="text-orange-600" />
-            AI Hackfest 2026 · Operational Agent
+            {t("hero.badge")}
           </span>
         </motion.div>
 
@@ -33,13 +36,13 @@ export const Hero = () => (
           {...fade(0.1)}
           className="mt-7 font-display text-5xl font-bold leading-[1.02] tracking-tighter text-stone-900 sm:text-6xl lg:text-[4.2rem]"
         >
-          Agen AI yang nggak cuma{" "}
+          {t("hero.h1.a")}{" "}
           <span className="text-stone-400 line-through decoration-orange-500/60 decoration-4">
-            jawab
+            {t("hero.h1.strike")}
           </span>
-          , tapi{" "}
-          <span className="relative inline-block text-emerald-900">
-            bertindak
+          {t("hero.h1.b")}{" "}
+          <span className="relative inline-block text-emerald-900 dark:text-emerald-300">
+            {t("hero.h1.emph")}
             <svg
               className="absolute -bottom-2 left-0 w-full"
               height="10"
@@ -58,8 +61,7 @@ export const Hero = () => (
         </motion.h1>
 
         <motion.p {...fade(0.2)} className="mt-8 max-w-lg text-base leading-relaxed text-stone-600 sm:text-lg">
-          TuntasUMKM balesin chat pembeli, cek stok, dan susun draft order buat toko
-          kamu — otomatis. Aksi pentingnya tetap nunggu kamu klik setuju.
+          {t("hero.desc")}
         </motion.p>
 
         <motion.div {...fade(0.3)} className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -68,7 +70,7 @@ export const Hero = () => (
             data-testid="hero-cta-primary"
             className="group inline-flex items-center justify-center gap-2 rounded-full bg-orange-600 px-7 py-4 text-sm font-semibold text-white transition-colors hover:bg-orange-700 active:scale-95"
           >
-            Coba Demo Interaktif
+            {t("hero.ctaPrimary")}
             <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
           </Link>
           <a
@@ -76,18 +78,18 @@ export const Hero = () => (
             data-testid="hero-cta-secondary"
             className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-stone-200 bg-white px-7 py-4 text-sm font-semibold text-stone-900 transition-colors hover:border-emerald-900 active:scale-95"
           >
-            <PlayCircle size={16} /> Lihat cara kerja
+            <PlayCircle size={16} /> {t("hero.ctaSecondary")}
           </a>
         </motion.div>
 
         <motion.div {...fade(0.45)} className="mt-14 flex flex-wrap gap-x-10 gap-y-6 border-t border-stone-200 pt-8">
           {[
-            ["< 5 detik", "rata-rata balasan"],
-            ["7 tahap", "pipeline agent"],
-            ["100%", "aksi berisiko diapprove"],
+            ["< 5s", t("hero.stat.time")],
+            ["7", t("hero.stat.pipeline")],
+            ["100%", t("hero.stat.approve")],
           ].map(([a, b]) => (
             <div key={b}>
-              <p className="font-display text-2xl font-bold text-emerald-900">{a}</p>
+              <p className="font-display text-2xl font-bold text-emerald-900 dark:text-emerald-300">{a}</p>
               <p className="mt-0.5 text-xs text-stone-500">{b}</p>
             </div>
           ))}
@@ -106,4 +108,5 @@ export const Hero = () => (
       </motion.div>
     </div>
   </section>
-);
+  );
+};

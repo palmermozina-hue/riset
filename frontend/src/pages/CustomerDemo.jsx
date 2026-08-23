@@ -16,6 +16,9 @@ import {
   saveLiveSession,
   subscribeStore,
 } from "@/lib/mockStore";
+import { useT } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const initialMessages = [
   {
@@ -53,6 +56,7 @@ const ownerEventToMessage = (evt) => {
 };
 
 export default function CustomerDemo() {
+  const t = useT();
   const [messages, setMessages] = useState(() => {
     const saved = getConversation();
     return saved && saved.length ? saved : initialMessages;
@@ -159,34 +163,36 @@ export default function CustomerDemo() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50" data-testid={DEMO.page}>
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950" data-testid={DEMO.page}>
       {/* Header slim */}
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/80 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-900/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-3.5 lg:px-10">
           <Link
             to="/"
             data-testid={DEMO.backHome}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-stone-700 transition-colors duration-200 hover:text-emerald-900"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-stone-700 transition-colors duration-200 hover:text-emerald-900 dark:text-stone-200 dark:hover:text-emerald-300"
           >
-            <ArrowLeft size={16} /> Balik ke beranda
+            <ArrowLeft size={16} /> {t("demo.back")}
           </Link>
           <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-emerald-800 md:inline-flex">
-            <Sparkles size={12} /> Live · powered by stealth/ox-alpha
+            <Sparkles size={12} /> {t("demo.live")}
           </span>
           <div className="flex items-center gap-2">
+            <LanguageToggle compact />
+            <ThemeToggle inline />
             <button
               onClick={reset}
               data-testid={DEMO.resetButton}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 transition-colors duration-200 hover:border-emerald-800 hover:text-emerald-900 active:scale-95"
+              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 transition-colors duration-200 hover:border-emerald-800 hover:text-emerald-900 active:scale-95 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200"
             >
-              <RotateCcw size={13} /> Reset
+              <RotateCcw size={13} /> {t("demo.reset")}
             </button>
             <Link
               to="/dashboard"
               data-testid={DEMO.openDashboard}
               className="inline-flex items-center gap-2 rounded-full bg-orange-600 px-4 py-2 text-xs font-semibold text-white transition-colors duration-200 hover:bg-orange-700 active:scale-95"
             >
-              Dashboard owner <ExternalLink size={12} />
+              {t("demo.dashboard")} <ExternalLink size={12} />
             </Link>
           </div>
         </div>
@@ -200,29 +206,27 @@ export default function CustomerDemo() {
           transition={{ duration: 0.5 }}
           className="max-w-3xl"
         >
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">
-            Coba jadi pelanggan
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400">
+            {t("demo.eyebrow")}
           </p>
-          <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl">
-            Chat pelanggan di kiri, pipeline agent di kanan.
+          <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl dark:text-stone-100">
+            {t("demo.h1")}
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-stone-600">
-            Setiap pesan yang kamu kirim langsung diproses via 7 tahap deterministik: intake →
-            understanding → grounding → tool call → approval → response → analytics. Pesanan bakal
-            muncul di{" "}
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-stone-600 dark:text-stone-400">
+            {t("demo.desc.a")}{" "}
             <Link
               to="/dashboard"
-              className="font-semibold text-emerald-800 underline decoration-orange-500 decoration-2 underline-offset-4 transition-colors duration-200 hover:text-orange-600"
+              className="font-semibold text-emerald-800 underline decoration-orange-500 decoration-2 underline-offset-4 transition-colors duration-200 hover:text-orange-600 dark:text-emerald-300"
             >
-              dashboard owner
+              {t("demo.desc.link")}
             </Link>{" "}
-            buat kamu setujui — begitu disetujui, konfirmasinya balik lagi ke chat ini otomatis.
+            {t("demo.desc.b")}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-8 border-t border-stone-200 pt-6">
-            <Stat label="Pesan kamu" value={stats.cust} />
-            <Stat label="Balasan agent" value={stats.bot} />
-            <Stat label="Session id" value={sessionId} mono />
+          <div className="mt-8 flex flex-wrap gap-8 border-t border-stone-200 pt-6 dark:border-stone-800">
+            <Stat label={t("demo.stat.cust")} value={stats.cust} />
+            <Stat label={t("demo.stat.bot")} value={stats.bot} />
+            <Stat label={t("demo.stat.session")} value={sessionId} mono />
           </div>
         </motion.div>
       </section>
@@ -249,10 +253,10 @@ export default function CustomerDemo() {
 const Stat = ({ label, value, mono }) => (
   <div>
     <p
-      className={`font-display text-2xl font-bold text-stone-900 ${mono ? "font-mono text-xl" : ""}`}
+      className={`font-display text-2xl font-bold text-stone-900 dark:text-stone-100 ${mono ? "font-mono text-xl" : ""}`}
     >
       {value}
     </p>
-    <p className="mt-0.5 text-xs uppercase tracking-widest text-stone-500">{label}</p>
+    <p className="mt-0.5 text-xs uppercase tracking-widest text-stone-500 dark:text-stone-400">{label}</p>
   </div>
 );

@@ -11,17 +11,13 @@ import { CONVERSATIONS } from "@/data/mockDashboard";
 import { DASHBOARD } from "@/constants/testIds";
 import { getUser } from "@/lib/mockAuth";
 import { getApprovals, pushOwnerEvent, removeApproval, subscribeStore } from "@/lib/mockStore";
+import { useT } from "@/lib/i18n";
 
-const HEADINGS = {
-  ringkasan: ["Ringkasan operasional", "Kondisi toko kamu hari ini, dirangkum agent."],
-  approval: ["Approval queue", "Aksi berisiko yang ditahan sampai kamu putuskan."],
-  inbox: ["Inbox chat", "Semua kanal dalam satu tempat, lengkap dengan jejak workflow."],
-  katalog: ["Katalog & stok", "Data yang jadi sumber jawaban agent."],
-  analitik: ["Analitik", "Tren percakapan, pesanan, dan performa agent."],
-};
+const HEADING_KEYS = ["ringkasan", "approval", "inbox", "katalog", "analitik"];
 
 export default function OwnerDashboard() {
   const user = getUser();
+  const t = useT();
   const [tab, setTab] = useState("ringkasan");
   const [queue, setQueue] = useState(() => getApprovals());
   const [history, setHistory] = useState([]);
@@ -55,7 +51,10 @@ export default function OwnerDashboard() {
     }
   };
 
-  const [title, subtitle] = HEADINGS[tab];
+  const title = t(`dash.${tab}.title`);
+  const subtitle = t(`dash.${tab}.sub`);
+  // touch HEADING_KEYS so linters keep import
+  void HEADING_KEYS;
 
   return (
     <Shell
@@ -66,12 +65,12 @@ export default function OwnerDashboard() {
     >
       <div className="mb-8">
         <h1
-          className="font-display text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl"
+          className="font-display text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl dark:text-stone-100"
           data-testid={DASHBOARD.sectionTitle}
         >
           {title}
         </h1>
-        <p className="mt-2 text-base text-stone-600">{subtitle}</p>
+        <p className="mt-2 text-base text-stone-600 dark:text-stone-400">{subtitle}</p>
       </div>
 
       {tab === "ringkasan" && (

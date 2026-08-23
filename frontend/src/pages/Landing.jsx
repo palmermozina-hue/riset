@@ -10,11 +10,13 @@ import { Segments } from "@/components/landing/Segments";
 import { FAQ } from "@/components/landing/FAQ";
 import { Waitlist } from "@/components/landing/Waitlist";
 import { Footer } from "@/components/landing/Footer";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Landing() {
   return (
-    <div className="overflow-x-hidden bg-stone-50 text-stone-900" data-testid="landing-page">
+    <div
+      className="overflow-x-hidden bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100"
+      data-testid="landing-page"
+    >
       <Navbar />
       <main>
         <Hero />
@@ -29,7 +31,6 @@ export default function Landing() {
         <Waitlist />
       </main>
       <Footer />
-      <ThemeToggle />
     </div>
   );
 }

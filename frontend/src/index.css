@@ -57,6 +57,28 @@ html {
         --ring: 164 86% 16%;
         --radius: 0.75rem;
     }
+
+    .dark {
+        --background: 24 10% 6%;
+        --foreground: 60 9% 96%;
+        --card: 24 6% 10%;
+        --card-foreground: 60 9% 96%;
+        --popover: 24 6% 10%;
+        --popover-foreground: 60 9% 96%;
+        --primary: 152 65% 52%;
+        --primary-foreground: 24 10% 8%;
+        --secondary: 24 5% 16%;
+        --secondary-foreground: 60 9% 96%;
+        --muted: 24 5% 16%;
+        --muted-foreground: 24 5% 65%;
+        --accent: 21 90% 55%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 62% 45%;
+        --destructive-foreground: 60 9% 96%;
+        --border: 24 5% 22%;
+        --input: 24 5% 22%;
+        --ring: 152 65% 52%;
+    }
 }
 
 @layer base {
@@ -84,6 +106,13 @@ html {
             transparent 0
         );
         background-size: 22px 22px;
+    }
+    .dark .dotted-grid {
+        background-image: radial-gradient(
+            circle at 1px 1px,
+            rgba(245, 245, 244, 0.08) 1px,
+            transparent 0
+        );
     }
 }
 
@@ -120,9 +149,9 @@ html {
 }
 
 /* ---------------------------------------------------------------------------
-   Dark mode (class-based). Komponen landing pakai utility warna stone/white
-   secara literal, jadi kita remap utility itu di bawah `.dark` supaya seluruh
-   halaman ikut gelap tanpa nyentuh tiap komponen satu-satu.
+   Dark mode (class-based). Semua komponen pakai utility stone/white literal,
+   jadi kita remap utility itu di bawah `.dark` supaya seluruh landing +
+   dashboard + demo ikut gelap tanpa nyentuh tiap komponen satu-satu.
 --------------------------------------------------------------------------- */
 html.dark {
     color-scheme: dark;
@@ -132,79 +161,147 @@ html.dark body {
     background-color: #0c0a09;
 }
 
-.dark .bg-stone-50,
+/* --- Backgrounds --- */
+.dark .bg-stone-50 {
+    background-color: #0c0a09;
+}
 .dark .bg-stone-100 {
     background-color: #1c1917;
+}
+.dark .bg-stone-200 {
+    background-color: #292524;
 }
 
 .dark .bg-white {
     background-color: #171412;
 }
-
 .dark .bg-white\/80,
-.dark .bg-white\/70 {
+.dark .bg-white\/70,
+.dark .bg-white\/75 {
     background-color: rgba(23, 20, 18, 0.82);
 }
-
+.dark .bg-white\/50 {
+    background-color: rgba(23, 20, 18, 0.55);
+}
 .dark .bg-stone-50\/60 {
     background-color: rgba(28, 25, 23, 0.6);
 }
+.dark .bg-stone-900 {
+    background-color: #171412;
+}
+.dark .bg-stone-800 {
+    background-color: #1c1917;
+}
 
+/* --- Text --- */
 .dark .text-stone-900,
 .dark .text-stone-800 {
     color: #f5f5f4;
 }
-
 .dark .text-stone-700 {
     color: #e7e5e4;
 }
-
 .dark .text-stone-600 {
     color: #d6d3d1;
 }
-
 .dark .text-stone-500 {
     color: #a8a29e;
 }
-
 .dark .text-stone-400 {
     color: #8a8481;
 }
+.dark .text-stone-300 {
+    color: #78716c;
+}
 
+/* --- Borders / rings --- */
 .dark .border-stone-200,
 .dark .border-stone-100 {
     border-color: #2d2926;
 }
-
 .dark .border-stone-300 {
     border-color: #3a3532;
 }
-
+.dark .border-stone-200\/70 {
+    border-color: rgba(45, 41, 38, 0.7);
+}
 .dark .divide-stone-200 > :not([hidden]) ~ :not([hidden]) {
     border-color: #2d2926;
 }
-
 .dark .ring-stone-200 {
     --tw-ring-color: #2d2926;
 }
 
+/* --- Emerald & orange accents jadi lebih hidup di dark --- */
 .dark .bg-emerald-50 {
     background-color: rgba(6, 78, 59, 0.28);
 }
-
+.dark .bg-emerald-100 {
+    background-color: rgba(6, 78, 59, 0.4);
+}
+.dark .bg-emerald-200\/40 {
+    background-color: rgba(6, 78, 59, 0.25);
+}
 .dark .text-emerald-800,
 .dark .text-emerald-900 {
     color: #6ee7b7;
+}
+.dark .text-emerald-700 {
+    color: #6ee7b7;
+}
+.dark .text-emerald-600 {
+    color: #34d399;
+}
+.dark .border-emerald-200 {
+    border-color: rgba(16, 185, 129, 0.35);
+}
+.dark .hover\:text-emerald-900:hover {
+    color: #a7f3d0;
+}
+.dark .hover\:bg-emerald-950:hover {
+    background-color: #022c22;
 }
 
 .dark .bg-orange-50 {
     background-color: rgba(124, 45, 18, 0.3);
 }
-
+.dark .bg-orange-100 {
+    background-color: rgba(124, 45, 18, 0.4);
+}
 .dark .text-orange-700 {
     color: #fdba74;
 }
+.dark .text-orange-600 {
+    color: #fb923c;
+}
 
+/* --- Hover states --- */
 .dark .hover\:bg-stone-50:hover {
     background-color: #232019;
+}
+.dark .hover\:bg-stone-100:hover {
+    background-color: #2a2622;
+}
+.dark .hover\:border-stone-300:hover {
+    border-color: #4b453f;
+}
+
+/* --- Shadow softening (biar tidak terlalu putih pekat) --- */
+.dark .shadow-lg,
+.dark .shadow-md,
+.dark .shadow-sm {
+    --tw-shadow-color: rgba(0, 0, 0, 0.5);
+}
+
+/* --- Form controls --- */
+.dark input,
+.dark textarea,
+.dark select {
+    background-color: #1c1917;
+    color: #f5f5f4;
+    border-color: #3a3532;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+    color: #78716c;
 }
