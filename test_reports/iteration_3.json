@@ -1,0 +1,19 @@
+{
+  "summary": "Benchmark Engine end-to-end verified. Backend POST /api/benchmark/run returns 200 with 32 cases, agent.stock_price_accuracy_pct=90.6 and baseline_manual.stock_price_accuracy_pct=65.0. GET /api/benchmark/last returns 200 with runs history. Frontend: login via /auth (test@example.com/password123) succeeds, redirects to /dashboard. Benchmark tab loads, 'Jalankan benchmark' button triggers run, and all 7 KPI cards render including 'Akurasi Stok & Harga'. Table displays 32 synthetic cases with Intent/SKU/Stok sub-badges (32/32/53 occurrences).",
+  "tested_scope": ["backend", "frontend", "auth", "integration"],
+  "passed": [
+    "POST /api/benchmark/run -> 200, 32 cases, stock_price_accuracy_pct present under agent (90.6) and baseline_manual (65.0)",
+    "GET /api/benchmark/last -> 200, returns {runs: [...]}",
+    "Case objects contain pass_intent, pass_sku_qty, pass_stock_price sub-fields",
+    "Login flow via /auth with test@example.com/password123 succeeds",
+    "Dashboard > Benchmark tab navigates and renders",
+    "Run benchmark button triggers pipeline and renders 6 top KPIs + 'Akurasi Stok & Harga' 7th card",
+    "Cases table renders 32 rows with Intent/SKU/Stok sub-badges"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "Landing page has a Masuk anchor that scrolls in-page; actual login route is /auth. Data-testid attributes missing on Benchmark tab/run button but text selectors worked reliably (minor, non-blocking)."
+}
