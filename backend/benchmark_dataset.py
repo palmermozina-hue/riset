@@ -106,6 +106,7 @@ BASELINE_MANUAL = {
     "intervention_rate_pct": 100.0,    # Semua manual, no automation
     "duplicate_prevention_pct": 12.0,  # Owner jarang notice dupe → double order
     "grounding_rate_pct": 74.0,        # Owner sering salah info harga/stok
+    "stock_price_accuracy_pct": 65.0,  # Owner sering salah info harga/stok di DB
     "cases": len(BENCHMARK_CASES),
     "label": "Manual (baseline UMKM)",
 }

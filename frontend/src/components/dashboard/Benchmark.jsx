@@ -26,6 +26,7 @@ const METRICS = [
   { key: "intervention_rate_pct", label: "Intervention rate", hint: "Butuh owner turun tangan", fmt: fmtPct, higher: false },
   { key: "duplicate_prevention_pct", label: "Duplicate prevention", hint: "Dedup pesan berulang", fmt: fmtPct, higher: true },
   { key: "grounding_rate_pct", label: "Grounding rate", hint: "Jawaban punya rujukan", fmt: fmtPct, higher: true },
+  { key: "stock_price_accuracy_pct", label: "Akurasi Stok & Harga", hint: "Kecocokan stok-harga vs DB", fmt: fmtPct, higher: true },
 ];
 
 const tooltipStyle = {
@@ -296,6 +297,35 @@ export const Benchmark = () => {
                       </td>
                       <td className="px-6 py-3 font-mono text-xs text-stone-500">{fmtMs(c.elapsed_ms)}</td>
                       <td className="px-6 py-3">
+                        <div className="flex flex-wrap gap-1.5 items-center mb-1">
+                          <span
+                            className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                              c.pass_intent
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+                                : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                            }`}
+                          >
+                            Intent: {c.pass_intent ? "✓" : "✗"}
+                          </span>
+                          <span
+                            className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                              c.pass_sku_qty
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+                                : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                            }`}
+                          >
+                            SKU/Qty: {c.pass_sku_qty ? "✓" : "✗"}
+                          </span>
+                          <span
+                            className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+                              c.pass_stock_price
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400"
+                                : "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                            }`}
+                          >
+                            Stok-Harga: {c.pass_stock_price ? "✓" : "✗"}
+                          </span>
+                        </div>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${
                             c.pass

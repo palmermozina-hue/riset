@@ -931,12 +931,54 @@ def _run_case(case: dict, seen_keys: set) -> dict:
     # Completion (mencapai Response ok)
     completed = any(s.stage == "Response" and s.status == "ok" for s in trace)
 
+    # Cek benar/salah jawaban stok-harga vs DB
+    pass_stock_price = True
+    expected_intent = expected.get("intent")
+    expected_sku = expected.get("sku")
+
+    if expected_intent in ("tanya_stok", "tanya_produk", "mau_pesan"):
+        if expected_sku:
+            db_product = next((p for p in PRODUCTS if p["sku"] == expected_sku), None)
+            if db_product:
+                if sku == expected_sku:
+                    if intent in ("tanya_stok", "tanya_produk"):
+                        if db_product["stock"] == 0:
+                            pass_stock_price = "kosong" in (parsed.get("reply") or "").lower() or (parsed.get("reply") or "") == ""
+                        else:
+                            has_stock = f"{db_product['stock']}" in (parsed.get("reply") or "")
+                            has_price = f"{db_product['price']:,}" in (parsed.get("reply") or "") or f"{db_product['price']}" in (parsed.get("reply") or "")
+                            pass_stock_price = has_stock and has_price
+                    elif intent == "mau_pesan":
+                        if db_product["stock"] == 0:
+                            tool_call_step = next((s for s in trace if s.stage == "Tool Call"), None)
+                            if tool_call_step:
+                                pass_stock_price = tool_call_step.status == "err" and "tidak cukup" in tool_call_step.detail
+                            else:
+                                pass_stock_price = False
+                        else:
+                            qty_val = qty or 1
+                            expected_total = db_product["price"] * qty_val
+                            tool_call_step = next((s for s in trace if s.stage == "Tool Call"), None)
+                            if tool_call_step:
+                                pass_stock_price = f"Rp{expected_total:,}" in tool_call_step.detail
+                            else:
+                                pass_stock_price = False
+                else:
+                    pass_stock_price = False
+            else:
+                pass_stock_price = False
+        else:
+            pass_stock_price = True
+
     return {
         "id": case["id"],
         "message": case["message"],
         "expected": expected,
         "agent": {"intent": intent, "sku": sku, "qty": qty},
         "pass": case_pass,
+        "pass_intent": pass_intent,
+        "pass_sku_qty": pass_sku and pass_qty,
+        "pass_stock_price": pass_stock_price,
         "elapsed_ms": elapsed_ms,
         "grounding_ok": grounding_ok,
         "grounding_present": grounding_present,
@@ -958,6 +1000,7 @@ async def run_benchmark():
     - intervention_rate_pct   : proporsi butuh owner turun tangan (HITL)
     - duplicate_prevention_pct: dedup pesan berulang tertangkap
     - grounding_rate_pct      : jawaban punya rujukan katalog
+    - stock_price_accuracy_pct: kesesuaian jawaban stok-harga vs DB
     """
     seen_keys: set = set()
     per_case = [_run_case(c, seen_keys) for c in BENCHMARK_CASES]
@@ -968,6 +1011,7 @@ async def run_benchmark():
     interventions = sum(1 for c in per_case if c["needs_intervention"])
     grounded_hits = sum(1 for c in per_case if c["grounding_ok"])
     grounded_present = sum(1 for c in per_case if c["grounding_present"])
+    stock_price_hits = sum(1 for c in per_case if c["pass_stock_price"])
     avg_ms = sum(c["elapsed_ms"] for c in per_case) / total
 
     # Duplicate prevention: dari case yang ditandai duplicate_of != None,
@@ -985,6 +1029,7 @@ async def run_benchmark():
         "grounding_rate_pct": round(
             (grounded_hits / grounded_present * 100) if grounded_present else 0, 1
         ),
+        "stock_price_accuracy_pct": round(stock_price_hits / total * 100, 1),
         "cases": total,
         "label": "TuntasUMKM Agent",
     }
@@ -1004,10 +1049,20 @@ async def run_benchmark():
     return doc
 
 
+@api_router.post("/benchmark/run")
+async def run_benchmark_alias():
+    return await run_benchmark()
+
+
 @api_router.get("/agent/benchmark/last")
 async def last_benchmarks(limit: int = 5):
     docs = await db.benchmark_runs.find({}, {"_id": 0}).sort("created_at", -1).to_list(limit)
     return {"runs": docs}
+
+
+@api_router.get("/benchmark/last")
+async def last_benchmarks_alias(limit: int = 5):
+    return await last_benchmarks(limit)
 
 
 # ------------------ Live session (untuk Inbox trace viewer) ------------------
