@@ -8,4 +8,9 @@ export const DEMO = {
   openDashboard: "demo-open-dashboard",
   resetButton: "demo-reset-btn",
   backHome: "demo-back-home",
+  scenarioPanel: "demo-scenario-panel",
+  scenarioPlay: (id) => `demo-scenario-play-${id}`,
+  scenarioStop: "demo-scenario-stop",
+  scenarioReset: "demo-scenario-reset",
+  scenarioProgress: "demo-scenario-progress",
 };

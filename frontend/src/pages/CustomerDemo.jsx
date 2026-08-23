@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ChatPanel } from "@/components/demo/ChatPanel";
 import { PipelinePanel } from "@/components/demo/PipelinePanel";
+import { ScenarioPanel } from "@/components/demo/ScenarioPanel";
 import { DEMO } from "@/constants/testIds";
 import { runAgent, STAGE_NAMES, IDLE_TRACE } from "@/lib/mockAgent";
 import {
@@ -233,6 +234,9 @@ export default function CustomerDemo() {
 
       {/* Split view */}
       <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-12 lg:grid-cols-12 lg:gap-8 lg:px-10 lg:py-16">
+        <div className="lg:col-span-12">
+          <ScenarioPanel onSend={handleSend} thinking={thinking} onReset={reset} />
+        </div>
         <div className="lg:col-span-7">
           <ChatPanel
             messages={messages}
