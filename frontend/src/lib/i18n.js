@@ -49,6 +49,8 @@ const dict = {
     "dash.katalog.sub": "Data yang jadi sumber jawaban agent.",
     "dash.analitik.title": "Analitik",
     "dash.analitik.sub": "Tren percakapan, pesanan, dan performa agent.",
+    "dash.pengaturan.title": "Pengaturan",
+    "dash.pengaturan.sub": "Profil toko, siapa saja yang punya akses, dan aturan main agent.",
 
     // Demo page
     "demo.back": "Balik ke beranda",
@@ -107,6 +109,8 @@ const dict = {
     "dash.katalog.sub": "The data that grounds the agent's answers.",
     "dash.analitik.title": "Analytics",
     "dash.analitik.sub": "Conversation, order, and agent performance trends.",
+    "dash.pengaturan.title": "Settings",
+    "dash.pengaturan.sub": "Store profile, who has access, and the agent's ground rules.",
 
     "demo.back": "Back to home",
     "demo.live": "Live · powered by stealth/ox-alpha",

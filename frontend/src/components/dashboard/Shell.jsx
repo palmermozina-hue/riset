@@ -9,6 +9,7 @@ import {
   Menu,
   MessagesSquare,
   Package,
+  Settings as SettingsIcon,
   X,
   Zap,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export const NAV = [
   { id: "inbox", label: "Inbox Chat", icon: MessagesSquare, badgeKey: "inbox" },
   { id: "katalog", label: "Katalog & Stok", icon: Package },
   { id: "analitik", label: "Analitik", icon: BarChart3 },
+  { id: "pengaturan", label: "Pengaturan", icon: SettingsIcon },
 ];
 
 export const Shell = ({ active, onChange, badges, user, children }) => {
@@ -145,14 +147,18 @@ export const Shell = ({ active, onChange, badges, user, children }) => {
                 </span>
               )}
             </button>
-            <div className="flex items-center gap-2.5 rounded-full border border-stone-200 bg-white py-1.5 pl-1.5 pr-4">
+            <button
+              onClick={() => onChange("pengaturan")}
+              data-testid="dashboard-user-chip"
+              className="flex items-center gap-2.5 rounded-full border border-stone-200 bg-white py-1.5 pl-1.5 pr-4 transition-colors hover:border-emerald-800 dark:border-stone-700 dark:bg-stone-900"
+            >
               <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-900 text-xs font-bold text-white">
                 {(user?.name || "R")[0].toUpperCase()}
               </span>
-              <span className="hidden text-sm font-semibold text-stone-800 sm:block" data-testid="dashboard-user-name">
+              <span className="hidden text-sm font-semibold text-stone-800 sm:block dark:text-stone-200" data-testid="dashboard-user-name">
                 {user?.name || "Owner"}
               </span>
-            </div>
+            </button>
           </div>
         </header>
 

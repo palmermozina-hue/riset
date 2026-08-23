@@ -6,3 +6,4 @@ export * from './auth';
 export * from './home';
 export * from './dashboard';
 export * from './demo';
+export * from './settings';

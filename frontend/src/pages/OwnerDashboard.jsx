@@ -7,13 +7,14 @@ import { ApprovalQueue } from "@/components/dashboard/ApprovalQueue";
 import { Inbox } from "@/components/dashboard/Inbox";
 import { Catalog } from "@/components/dashboard/Catalog";
 import { Analytics } from "@/components/dashboard/Analytics";
+import { Settings } from "@/components/dashboard/Settings";
 import { CONVERSATIONS } from "@/data/mockDashboard";
 import { DASHBOARD } from "@/constants/testIds";
 import { getUser } from "@/lib/mockAuth";
 import { getApprovals, pushOwnerEvent, removeApproval, subscribeStore } from "@/lib/mockStore";
 import { useT } from "@/lib/i18n";
 
-const HEADING_KEYS = ["ringkasan", "approval", "inbox", "katalog", "analitik"];
+const HEADING_KEYS = ["ringkasan", "approval", "inbox", "katalog", "analitik", "pengaturan"];
 
 export default function OwnerDashboard() {
   const user = getUser();
@@ -80,6 +81,7 @@ export default function OwnerDashboard() {
       {tab === "inbox" && <Inbox />}
       {tab === "katalog" && <Catalog />}
       {tab === "analitik" && <Analytics />}
+      {tab === "pengaturan" && <Settings />}
     </Shell>
   );
 }

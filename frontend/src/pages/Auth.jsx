@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Loader2, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { LOGIN, REGISTER } from "@/constants/testIds";
-import { signIn } from "@/lib/mockAuth";
+import { signIn, signInWithGoogle } from "@/lib/mockAuth";
+import { GoogleIcon } from "@/components/GoogleIcon";
 
 const HIGHLIGHTS = [
   { title: "Human-in-the-loop", desc: "Setiap aksi berisiko nunggu ketukan jempol kamu dulu." },
@@ -20,6 +21,7 @@ export default function Auth() {
   const [mode, setMode] = useState(params.get("mode") === "register" ? "register" : "login");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
@@ -52,6 +54,16 @@ export default function Auth() {
   const switchMode = (next) => {
     setMode(next);
     setErrors({});
+  };
+
+  const googleSignIn = () => {
+    setGoogleLoading(true);
+    setTimeout(() => {
+      const user = signInWithGoogle();
+      toast.success(`Masuk sebagai ${user.email} lewat Google.`);
+      setGoogleLoading(false);
+      navigate("/dashboard");
+    }, 900);
   };
 
   return (
@@ -159,8 +171,31 @@ export default function Auth() {
             ))}
           </div>
 
-          <form onSubmit={submit} noValidate className="mt-7 space-y-5" data-testid="auth-form">
-            {isRegister && (
+          {/* Google OAuth (mock) */}
+          <button
+            type="button"
+            onClick={googleSignIn}
+            disabled={googleLoading}
+            data-testid={isRegister ? REGISTER.googleButton : LOGIN.googleButton}
+            className="mt-7 inline-flex w-full items-center justify-center gap-3 rounded-full border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-800 transition-colors hover:border-stone-400 hover:bg-stone-50 active:scale-[0.98] disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-900"
+          >
+            {googleLoading ? (
+              <Loader2 size={17} className="animate-spin" />
+            ) : (
+              <GoogleIcon size={18} />
+            )}
+            {isRegister ? "Daftar dengan Google" : "Masuk dengan Google"}
+          </button>
+
+          <div className="my-6 flex items-center gap-4" data-testid="auth-divider">
+            <span className="h-px flex-1 bg-stone-200" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+              atau pakai email
+            </span>
+            <span className="h-px flex-1 bg-stone-200" />
+          </div>
+
+          <form onSubmit={submit} noValidate className="space-y-5" data-testid="auth-form">            {isRegister && (
               <Field label="Nama pemilik / toko" error={errors.name}>
                 <input
                   type="text"
