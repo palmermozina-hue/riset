@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import re
 import json
+import asyncio
 import logging
 import httpx
 from pathlib import Path
@@ -232,10 +233,68 @@ def extract_json(text: str) -> dict:
     return {}
 
 
+def heuristic_parse(message: str) -> dict:
+    """Fallback deterministik kalau LLM lagi rate-limited/error.
+    Demo hackathon nggak boleh mati cuma gara-gara upstream 429."""
+    text = message.lower()
+    product = None
+    for p in PRODUCTS:
+        words = [w for w in re.split(r"[\s-]+", p["name"].lower()) if len(w) > 3]
+        if p["sku"].lower() in text or sum(1 for w in words if w in text) >= 2:
+            product = p
+            break
+    qty_match = re.search(r"(\d+)\s*(pcs|botol|buah|liter|pack|x)?", text)
+    qty = int(qty_match.group(1)) if qty_match else None
+
+    order_words = ("pesan", "order", "beli", "ambil", "checkout", "mau")
+    stock_words = ("stok", "stock", "ready", "ada", "harga", "berapa")
+    complain_words = ("komplain", "protes", "rusak", "kecewa", "salah kirim", "refund")
+
+    if any(w in text for w in complain_words):
+        intent = "komplain"
+    elif any(w in text for w in order_words) and product:
+        intent = "mau_pesan"
+    elif any(w in text for w in stock_words):
+        intent = "tanya_stok"
+    else:
+        intent = "lainnya"
+
+    if intent == "tanya_stok" and product:
+        if product["stock"] > 0:
+            reply = (
+                f"{product['name']} ready kak, sisa {product['stock']} unit. "
+                f"Harganya Rp{product['price']:,}."
+            )
+        else:
+            reply = (
+                f"Waduh, {product['name']} lagi kosong kak 🙏 "
+                "Mau aku kabarin begitu restock?"
+            )
+    elif intent == "mau_pesan" and product:
+        reply = (
+            f"Sip kak, aku catat {qty or 1}× {product['name']}. "
+            "Aku bikin draft pesanannya dulu ya, tunggu konfirmasi owner sebentar 🙌"
+        )
+    else:
+        reply = (
+            "Hai kak 👋 aku bisa bantu cek stok, harga, atau buat pesanan. "
+            "Mau tanya produk yang mana?"
+        )
+
+    return {
+        "intent": intent,
+        "sku": product["sku"] if product else None,
+        "qty": qty if intent == "mau_pesan" else None,
+        "reply": reply,
+        "confidence": 0.55 if product else 0.3,
+    }
+
+
 async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        raise HTTPException(500, "OPENROUTER_API_KEY belum di-set")
+        logger.warning("OPENROUTER_API_KEY belum di-set — pakai fallback deterministik")
+        return heuristic_parse(message), 0
 
     msgs = [{"role": "system", "content": SYSTEM_PROMPT}]
     for h in history[-8:]:  # cap history
@@ -255,20 +314,35 @@ async def call_llm(message: str, history: List[ChatMsg]) -> tuple[dict, int]:
         "X-Title": "TuntasUMKM",
     }
     start = datetime.now()
+    r = None
+    # Upstream stealth/ox-alpha kadang 429 sesaat — retry dengan backoff.
     async with httpx.AsyncClient(timeout=30.0) as http:
-        r = await http.post(OPENROUTER_URL, json=payload, headers=headers)
+        for attempt in range(3):
+            try:
+                r = await http.post(OPENROUTER_URL, json=payload, headers=headers)
+            except httpx.HTTPError as exc:
+                logger.warning(f"OpenRouter transport error (attempt {attempt + 1}): {exc}")
+                r = None
+            if r is not None and r.status_code == 200:
+                break
+            if r is not None and r.status_code not in (408, 429, 500, 502, 503, 504):
+                break
+            if attempt < 2:
+                await asyncio.sleep(1.2 * (attempt + 1))
+
     elapsed_ms = int((datetime.now() - start).total_seconds() * 1000)
-    if r.status_code != 200:
-        logger.error(f"OpenRouter {r.status_code}: {r.text[:400]}")
-        raise HTTPException(502, f"LLM error: {r.status_code}")
+
+    if r is None or r.status_code != 200:
+        detail = r.text[:400] if r is not None else "no response"
+        logger.error(f"OpenRouter gagal setelah retry: {detail}")
+        return heuristic_parse(message), elapsed_ms
+
     data = r.json()
     content = data["choices"][0]["message"]["content"]
     parsed = extract_json(content)
     if not parsed:
         logger.error(f"LLM output not parseable: {content[:400]}")
-        parsed = {"intent": "lainnya", "sku": None, "qty": None,
-                  "reply": "Maaf kak, aku belum nangkep maksudmu. Coba tulis ulang ya?",
-                  "confidence": 0.3}
+        parsed = heuristic_parse(message)
     return parsed, elapsed_ms
 
 

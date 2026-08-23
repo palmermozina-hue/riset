@@ -5,13 +5,16 @@ import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Features } from "@/components/landing/Features";
 import { Differentiator } from "@/components/landing/Differentiator";
 import { DemoPreview } from "@/components/landing/DemoPreview";
+import { Testimonials } from "@/components/landing/Testimonials";
 import { Segments } from "@/components/landing/Segments";
+import { FAQ } from "@/components/landing/FAQ";
 import { Waitlist } from "@/components/landing/Waitlist";
 import { Footer } from "@/components/landing/Footer";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Landing() {
   return (
-    <div className="bg-stone-50 text-stone-900 overflow-x-hidden" data-testid="landing-page">
+    <div className="overflow-x-hidden bg-stone-50 text-stone-900" data-testid="landing-page">
       <Navbar />
       <main>
         <Hero />
@@ -20,10 +23,13 @@ export default function Landing() {
         <Features />
         <Differentiator />
         <DemoPreview />
+        <Testimonials />
         <Segments />
+        <FAQ />
         <Waitlist />
       </main>
       <Footer />
+      <ThemeToggle />
     </div>
   );
 }

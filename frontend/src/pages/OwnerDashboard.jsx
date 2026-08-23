@@ -10,7 +10,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { CONVERSATIONS } from "@/data/mockDashboard";
 import { DASHBOARD } from "@/constants/testIds";
 import { getUser } from "@/lib/mockAuth";
-import { getApprovals, removeApproval, subscribeStore } from "@/lib/mockStore";
+import { getApprovals, pushOwnerEvent, removeApproval, subscribeStore } from "@/lib/mockStore";
 
 const HEADINGS = {
   ringkasan: ["Ringkasan operasional", "Kondisi toko kamu hari ini, dirangkum agent."],
@@ -40,8 +40,16 @@ export default function OwnerDashboard() {
     setQueue((q) => q.filter((x) => x.id !== item.id));
     setHistory((h) => [{ ...item, decision }, ...h]);
     removeApproval(item.id);
+    // Owner reply loop — kirim keputusan balik ke chat pelanggan di /demo.
+    pushOwnerEvent({
+      id: item.id,
+      decision,
+      customer: item.customer,
+      total: item.total,
+      reason: decision === "reject" ? "stok lagi nggak mencukupi" : undefined,
+    });
     if (decision === "approve") {
-      toast.success(`${item.id} disetujui — agent lanjut eksekusi & kabari pelanggan.`);
+      toast.success(`${item.id} disetujui — konfirmasi terkirim ke chat pelanggan.`);
     } else {
       toast.info(`${item.id} ditolak. Agent kirim penjelasan sopan ke ${item.customer}.`);
     }
